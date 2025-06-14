@@ -1,0 +1,88 @@
+{
+  "name": "the-python-graph-gallery",
+  "private": true,
+  "description": "A gallery displaying hundreds of charts made with Python with their reproducible code",
+  "version": "0.1.0",
+  "license": "0BSD",
+  "scripts": {
+    "build": "gatsby build",
+    "develop": "gatsby develop",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "start": "npm run develop",
+    "serve": "gatsby serve",
+    "clean": "gatsby clean",
+    "test": "echo \"Write tests! -> https://gatsby.dev/unit-testing\" && exit 1",
+    "deploy": "gatsby build && gh-pages -d public"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.4.0",
+    "@nteract/commutable": "^6.0.4-alpha.0",
+    "@nteract/display-area": "^5.0.4-alpha.0",
+    "@nteract/presentational-components": "^3.4.2",
+    "@nteract/records": "^1.0.4-alpha.0",
+    "@nteract/transforms": "^5.0.4-alpha.0",
+    "bootstrap": "^5.3.0",
+    "d3": "^7.8.5",
+    "d3-voronoi": "^1.1.4",
+    "gatsby": "^5.14.0",
+    "gatsby-plugin-google-gtag": "^5.10.0",
+    "gatsby-plugin-image": "^3.10.0",
+    "gatsby-plugin-manifest": "^5.12.0",
+    "gatsby-plugin-sharp": "^5.10.0",
+    "gatsby-plugin-sitemap": "^6.12.0",
+    "gatsby-source-filesystem": "^5.10.0",
+    "gatsby-transformer-sharp": "^5.10.0",
+    "katex": "^0.16.21",
+    "lucide-react": "^0.408.0",
+    "prismjs": "^1.30.0",
+    "react": "^18.2.0",
+    "react-bootstrap": "^2.7.4",
+    "react-dom": "^18.2.0",
+    "react-katex": "^2.0.2",
+    "react-markdown": "^4.3.1",
+    "rehype-katex": "^1.2.0",
+    "rehype-stringify": "^5.0.0",
+    "remark": "^9.0.0",
+    "remark-math": "^1.0.4",
+    "remark-rehype": "^4.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.42.0",
+    "eslint-plugin-react": "^7.32.2",
+    "gh-pages": "^5.0.0",
+    "html-loader": "^2.1.2",
+    "prettier": "^2.8.8",
+    "raw-loader": "^4.0.2"
+  },
+  "overrides": {
+    "gatsby": {
+      "react": "18.2.0",
+      "eslint-plugin": "5.57.0"
+    },
+    "@andru/notebook-render": {
+      "react": "18.2.0"
+    },
+    "@nteract/display-area": {
+      "react": "18.2.0"
+    },
+    "@nteract/presentational-components": {
+      "react": "18.2.0"
+    },
+    "@nteract/transforms": {
+      "react": "18.2.0"
+    },
+    "react-katex": {
+      "react": "18.2.0"
+    },
+    "react-markdown": {
+      "react": "18.2.0"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gatsbyjs/gatsby-starter-hello-world"
+  },
+  "bugs": {
+    "url": "https://github.com/gatsbyjs/gatsby/issues"
+  }
+}

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Python backend for LLM training
+  d3-precursor:
+    build: 
+      context: ./d3-precursor
+      dockerfile: Dockerfile
+    volumes:
+      - ./d3-precursor:/app
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=ollama
+    depends_on:
+      - ollama
+
+  # React frontend for D3 code generation
+  d3-receptor:
+    build:
+      context: ./d3-receptor
+      dockerfile: Dockerfile
+    volumes:
+      - ./d3-receptor:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - d3-precursor
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+  # Web application for deployment
+  d3-parkour:
+    build:
+      context: ./d3-parkour
+      dockerfile: Dockerfile
+    volumes:
+      - ./d3-parkour:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - d3-receptor
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_RECEPTOR_URL=http://localhost:5173
+
+  # Ollama service
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ./models:/root/.ollama
+    ports:
+      - "11434:11434" 

@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "d3-parkour/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/d3-parkour/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://api.d3-neuro.com",
+    "NEXT_PUBLIC_RECEPTOR_URL": "https://receptor.d3-neuro.com"
+  }
+} 

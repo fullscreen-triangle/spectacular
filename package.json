@@ -1,0 +1,33 @@
+{
+  "name": "d3-neuro",
+  "version": "1.0.0",
+  "description": "Domain-Specific LLM for D3 Visualizations",
+  "private": true,
+  "workspaces": [
+    "d3-precursor",
+    "d3-receptor",
+    "d3-parkour"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd d3-precursor && pip install -r requirements.txt",
+    "precursor:dev": "cd d3-precursor && python -m src",
+    "receptor:dev": "cd d3-receptor && npm run dev",
+    "parkour:dev": "cd d3-parkour && npm run dev",
+    "dev": "concurrently \"npm run precursor:dev\" \"npm run receptor:dev\" \"npm run parkour:dev\"",
+    "build:receptor": "cd d3-receptor && npm run build",
+    "build:parkour": "cd d3-parkour && npm run build",
+    "build": "npm run build:receptor && npm run build:parkour"
+  },
+  "keywords": [
+    "d3",
+    "visualization",
+    "machine-learning",
+    "ollama",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
