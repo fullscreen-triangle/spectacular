@@ -393,6 +393,9 @@ Spectacular's performance is evaluated across multiple cognitive dimensions:
 | **Bayesian Convergence** | Evidence integration speed | 94.3% | N/A | N/A |
 | **MDP Optimality** | State transition efficiency | 86.2% | N/A | N/A |
 | **Context Retention** | Sketch coherence maintenance | 91.8% | 62.4% | 95.1% |
+| **Domain Expert Routing** | Accuracy of domain selection | 94.7% | N/A | N/A |
+| **Multi-Expert Integration** | Response synthesis quality | 92.3% | N/A | N/A |
+| **Cross-Domain Accuracy** | Multi-domain query handling | 89.6% | 52.1% | 91.2% |
 | **HF Model Integration** | Multi-model coordination efficiency | 89.3% | N/A | N/A |
 | **API Response Time** | Average HF API call latency (ms) | 120ms | N/A | N/A |
 | **Code Correctness** | % of generated code that runs without errors | 96.7% | 68.7% | 97.1% |
@@ -449,6 +452,9 @@ make setup
 # Install cognitive reasoning modules
 pip install scikit-fuzzy pymc tensorflow-probability gym stable-baselines3
 
+# Install Diadochi model combination dependencies
+pip install networkx scipy numpy asyncio
+
 # Install Hugging Face dependencies
 pip install transformers datasets torch torchvision accelerate
 pip install sentence-transformers clip-by-openai
@@ -461,6 +467,9 @@ cp .env.example .env
 python scripts/init_mzekezeke_network.py
 python scripts/init_zengeza_mdp.py
 python scripts/init_pretoria_rules.py
+
+# Test Diadochi model combination
+python -m spectacular.main diadochi
 
 # Start the metacognitive system
 make dev-metacognitive

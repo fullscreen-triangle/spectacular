@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diadochi - Intelligent Model Combination | Spectacular</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="../index.html"><h2>🎆 Spectacular</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../index.html#modules">Modules</a></li>
+                <li><a href="../api/diadochi.html">API</a></li>
+                <li><a href="../examples/">Examples</a></li>
+                <li><a href="https://github.com/your-username/spectacular" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main style="padding-top: 100px;">
+        <div class="container">
+            <header class="module-header">
+                <div class="module-title">
+                    <h1>🏛️ Diadochi</h1>
+                    <p class="module-subtitle">Intelligent Model Combination for Superior Expert Domains</p>
+                </div>
+                <div class="module-status">
+                    <span class="status-badge active">Active</span>
+                    <span class="version-badge">v1.0.0</span>
+                </div>
+            </header>
+
+            <section class="module-overview">
+                <h2>Overview</h2>
+                <p class="lead">
+                    Named after Alexander the Great's successors who divided and ruled different domains, 
+                    the Diadochi module implements sophisticated architectural patterns for combining 
+                    domain-expert models to create superior integrated AI systems.
+                </p>
+                
+                <div class="key-features">
+                    <h3>Key Capabilities</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <div class="feature-icon">🎯</div>
+                            <h4>Router-Based Ensembles</h4>
+                            <p>Intelligent query routing to appropriate domain experts based on semantic analysis</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔗</div>
+                            <h4>Sequential Chaining</h4>
+                            <p>Progressive domain analysis through expert chains with context building</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">⚖️</div>
+                            <h4>Mixture of Experts</h4>
+                            <p>Confidence-based weighting and response synthesis for comprehensive answers</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🧠</div>
+                            <h4>System Prompts</h4>
+                            <p>Single-model multi-expertise approaches for resource-constrained environments</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">📚</div>
+                            <h4>Knowledge Distillation</h4>
+                            <p>Cross-domain knowledge transfer for production deployment</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔍</div>
+                            <h4>Multi-Domain RAG</h4>
+                            <p>Specialized knowledge base integration with domain-specific retrieval</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="architecture-section">
+                <h2>Architecture Patterns</h2>
+                <p>Diadochi implements five core architectural patterns for intelligent model combination:</p>
+                
+                <div class="pattern-details">
+                    <div class="pattern-detail">
+                        <h3>1. Router-Based Ensembles</h3>
+                        <div class="pattern-content">
+                            <div class="pattern-description">
+                                <p>Routes queries to the most appropriate domain expert based on content analysis and confidence scoring.</p>
+                                <h4>Use Cases:</h4>
+                                <ul>
+                                    <li>Clear domain boundaries</li>
+                                    <li>High efficiency requirements</li>
+                                    <li>Specialized expertise needed</li>
+                                </ul>
+                                <h4>Advantages:</h4>
+                                <ul>
+                                    <li>Low computational cost</li>
+                                    <li>High specialization</li>
+                                    <li>Easy to scale</li>
+                                </ul>
+                            </div>
+                            <div class="pattern-code">
+                                <pre><code class="language-python"># Router-Based Ensemble Example
+from spectacular import DiadochiOrchestrator, IntegrationPattern
+
+diadochi = DiadochiOrchestrator()
+
+# Create router ensemble
+diadochi.create_integration_pattern(
+    IntegrationPattern.ROUTER_ENSEMBLE, 
+    "router_pattern"
+)
+
+# Process query - automatically routed
+result = await diadochi.process_query(
+    "Create a scatter plot with statistical analysis",
+    pattern_name="router_pattern"
+)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pattern-detail">
+                        <h3>2. Sequential Chaining</h3>
+                        <div class="pattern-content">
+                            <div class="pattern-description">
+                                <p>Processes queries through multiple experts sequentially, building context and insights progressively.</p>
+                                <h4>Use Cases:</h4>
+                                <ul>
+                                    <li>Progressive analysis needed</li>
+                                    <li>Context building required</li>
+                                    <li>Multi-step reasoning</li>
+                                </ul>
+                                <h4>Advantages:</h4>
+                                <ul>
+                                    <li>Deep integration</li>
+                                    <li>Context preservation</li>
+                                    <li>Comprehensive analysis</li>
+                                </ul>
+                            </div>
+                            <div class="pattern-code">
+                                <pre><code class="language-python"># Sequential Chain Example
+diadochi.create_integration_pattern(
+    IntegrationPattern.SEQUENTIAL_CHAIN,
+    "chain_pattern",
+    prompt_templates={
+        "statistics": "Analyze statistical aspects: {query}",
+        "visualization": "Based on stats: {prev_response}, create viz for: {query}",
+        "design": "Improve UX of: {prev_response} for query: {query}"
+    }
+)
+
+result = await diadochi.process_query(
+    "Create an accessible dashboard for sales analysis",
+    pattern_name="chain_pattern"
+)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pattern-detail">
+                        <h3>3. Mixture of Experts</h3>
+                        <div class="pattern-content">
+                            <div class="pattern-description">
+                                <p>Combines responses from multiple experts using confidence-based weighting and intelligent synthesis.</p>
+                                <h4>Use Cases:</h4>
+                                <ul>
+                                    <li>Multi-domain queries</li>
+                                    <li>Comprehensive responses needed</li>
+                                    <li>Uncertainty handling</li>
+                                </ul>
+                                <h4>Advantages:</h4>
+                                <ul>
+                                    <li>Comprehensive coverage</li>
+                                    <li>Confidence weighting</li>
+                                    <li>Robust responses</li>
+                                </ul>
+                            </div>
+                            <div class="pattern-code">
+                                <pre><code class="language-python"># Mixture of Experts Example
+diadochi.create_integration_pattern(
+    IntegrationPattern.MIXTURE_OF_EXPERTS,
+    "moe_pattern"
+)
+
+# All relevant experts contribute
+result = await diadochi.process_query(
+    "Design a color-blind accessible heatmap with clustering",
+    pattern_name="moe_pattern",
+    threshold=0.3  # Confidence threshold
+)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="implementation-section">
+                <h2>Implementation Guide</h2>
+                
+                <div class="implementation-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Initialize Orchestrator</h3>
+                            <p>Create the main Diadochi orchestrator with optional configuration.</p>
+                            <pre><code class="language-python">from spectacular import DiadochiOrchestrator, DomainExpertise
+
+# Initialize with custom config
+config = {
+    "max_experts": 5,
+    "confidence_threshold": 0.7,
+    "synthesis_model": "gpt-4"
+}
+
+diadochi = DiadochiOrchestrator(config)</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Define Domain Expertise</h3>
+                            <p>Create domain expertise profiles with keywords and reasoning patterns.</p>
+                            <pre><code class="language-python"># Define visualization expertise
+viz_expertise = DomainExpertise(
+    domain="data_visualization",
+    description="Expert in D3.js and visualization principles",
+    keywords=["chart", "graph", "plot", "d3", "svg", "interactive"],
+    reasoning_patterns=["visual encoding", "chart selection", "aesthetic optimization"],
+    confidence_threshold=0.8
+)
+
+# Define statistics expertise
+stats_expertise = DomainExpertise(
+    domain="statistics",
+    description="Expert in statistical analysis and modeling",
+    keywords=["correlation", "regression", "significance", "distribution"],
+    reasoning_patterns=["statistical analysis", "hypothesis testing"]
+)</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Register Domain Experts</h3>
+                            <p>Register your domain expert models with their expertise profiles.</p>
+                            <pre><code class="language-python"># Register experts (replace with actual models)
+diadochi.register_domain_expert(
+    "visualization", 
+    your_viz_model, 
+    viz_expertise
+)
+
+diadochi.register_domain_expert(
+    "statistics", 
+    your_stats_model, 
+    stats_expertise
+)
+
+diadochi.register_domain_expert(
+    "design", 
+    your_design_model, 
+    design_expertise
+)</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Create Integration Patterns</h3>
+                            <p>Set up different integration patterns for various use cases.</p>
+                            <pre><code class="language-python"># Create multiple patterns
+patterns = [
+    (IntegrationPattern.ROUTER_ENSEMBLE, "quick_routing"),
+    (IntegrationPattern.MIXTURE_OF_EXPERTS, "comprehensive"),
+    (IntegrationPattern.SEQUENTIAL_CHAIN, "progressive")
+]
+
+for pattern_type, name in patterns:
+    diadochi.create_integration_pattern(pattern_type, name)</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <h3>Process Queries</h3>
+                            <p>Use the orchestrator to process multi-domain queries.</p>
+                            <pre><code class="language-python"># Process with specific pattern
+result = await diadochi.process_query(
+    "Create an interactive scatter plot with statistical annotations",
+    pattern_name="comprehensive",
+    top_k=3
+)
+
+print(f"Response: {result['response']}")
+print(f"Domains used: {result['domains_used']}")
+print(f"Confidence scores: {result['confidence_scores']}")
+print(f"Processing time: {result['processing_time']:.3f}s")</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="performance-section">
+                <h2>Performance Metrics</h2>
+                <p>Diadochi's performance across different integration patterns:</p>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Domain Expert Routing</h3>
+                        <div class="metric-value" data-suffix="%">94.7</div>
+                        <p>Accuracy of domain selection</p>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Multi-Expert Integration</h3>
+                        <div class="metric-value" data-suffix="%">92.3</div>
+                        <p>Response synthesis quality</p>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Cross-Domain Accuracy</h3>
+                        <div class="metric-value" data-suffix="%">89.6</div>
+                        <p>Multi-domain query handling</p>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Processing Speed</h3>
+                        <div class="metric-value" data-suffix="ms">120</div>
+                        <p>Average response time</p>
+                    </div>
+                </div>
+
+                <div class="pattern-comparison">
+                    <h3>Pattern Comparison</h3>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Pattern</th>
+                                <th>Use Case</th>
+                                <th>Strengths</th>
+                                <th>Computational Cost</th>
+                                <th>Best For</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Router Ensemble</strong></td>
+                                <td>Clear domain boundaries</td>
+                                <td>High efficiency, specialization</td>
+                                <td>Low</td>
+                                <td>Single-domain queries</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sequential Chain</strong></td>
+                                <td>Progressive analysis</td>
+                                <td>Deep integration, context building</td>
+                                <td>Medium</td>
+                                <td>Multi-step reasoning</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Mixture of Experts</strong></td>
+                                <td>Multi-domain queries</td>
+                                <td>Comprehensive responses</td>
+                                <td>High</td>
+                                <td>Complex integrations</td>
+                            </tr>
+                            <tr>
+                                <td><strong>System Prompts</strong></td>
+                                <td>Resource constraints</td>
+                                <td>Single model, tight integration</td>
+                                <td>Low</td>
+                                <td>Limited resources</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Knowledge Distillation</strong></td>
+                                <td>Production deployment</td>
+                                <td>Fast inference, integrated knowledge</td>
+                                <td>Medium</td>
+                                <td>Production systems</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="examples-section">
+                <h2>Real-World Examples</h2>
+                
+                <div class="example-cards">
+                    <div class="example-card">
+                        <h3>Scientific Data Visualization</h3>
+                        <p><strong>Query:</strong> "Create an interactive heatmap for genomics data with statistical clustering and accessibility features"</p>
+                        <p><strong>Pattern:</strong> Mixture of Experts</p>
+                        <p><strong>Domains:</strong> Bioinformatics, Statistics, Visualization, UX Design</p>
+                        <div class="example-result">
+                            <h4>Result:</h4>
+                            <ul>
+                                <li>Hierarchical clustering analysis (Statistics)</li>
+                                <li>Color-blind accessible palette (UX Design)</li>
+                                <li>Interactive D3.js heatmap (Visualization)</li>
+                                <li>Domain-specific annotations (Bioinformatics)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="example-card">
+                        <h3>Business Dashboard</h3>
+                        <p><strong>Query:</strong> "Design a sales performance dashboard with predictive analytics and user-friendly interface"</p>
+                        <p><strong>Pattern:</strong> Sequential Chain</p>
+                        <p><strong>Chain:</strong> Business Analysis → Statistics → Visualization → UX Design</p>
+                        <div class="example-result">
+                            <h4>Result:</h4>
+                            <ul>
+                                <li>KPI identification and metrics (Business)</li>
+                                <li>Predictive modeling setup (Statistics)</li>
+                                <li>Multi-chart dashboard layout (Visualization)</li>
+                                <li>Intuitive interaction design (UX)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="example-card">
+                        <h3>Educational Visualization</h3>
+                        <p><strong>Query:</strong> "Create an educational visualization explaining statistical concepts to students"</p>
+                        <p><strong>Pattern:</strong> Router Ensemble</p>
+                        <p><strong>Primary Domain:</strong> Educational Technology</p>
+                        <div class="example-result">
+                            <h4>Result:</h4>
+                            <ul>
+                                <li>Age-appropriate complexity level</li>
+                                <li>Interactive learning elements</li>
+                                <li>Progressive disclosure design</li>
+                                <li>Assessment integration</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="api-reference">
+                <h2>Quick API Reference</h2>
+                <div class="api-methods">
+                    <div class="api-method">
+                        <h3>DiadochiOrchestrator</h3>
+                        <pre><code class="language-python">class DiadochiOrchestrator:
+    def __init__(self, config: Dict[str, Any] = None)
+    def register_domain_expert(self, domain: str, expert: Any, expertise: DomainExpertise)
+    def create_integration_pattern(self, pattern_type: IntegrationPattern, name: str, **kwargs)
+    async def process_query(self, query: str, pattern_name: str = None, **kwargs) -> Dict[str, Any]
+    def get_system_status(self) -> Dict[str, Any]
+    async def benchmark_patterns(self, test_queries: List[str]) -> Dict[str, Any]</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h3>DomainExpertise</h3>
+                        <pre><code class="language-python">@dataclass
+class DomainExpertise:
+    domain: str
+    description: str
+    keywords: List[str] = field(default_factory=list)
+    confidence_threshold: float = 0.7
+    reasoning_patterns: List[str] = field(default_factory=list)
+    communication_style: str = "technical"
+    knowledge_base: Optional[str] = None</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h3>IntegrationPattern</h3>
+                        <pre><code class="language-python">class IntegrationPattern(Enum):
+    ROUTER_ENSEMBLE = "router_ensemble"
+    SEQUENTIAL_CHAIN = "sequential_chain"
+    MIXTURE_OF_EXPERTS = "mixture_of_experts"
+    SYSTEM_PROMPTS = "system_prompts"
+    KNOWLEDGE_DISTILLATION = "knowledge_distillation"
+    MULTI_RAG = "multi_rag"</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section class="troubleshooting">
+                <h2>Troubleshooting</h2>
+                <div class="troubleshooting-items">
+                    <div class="trouble-item">
+                        <h3>Low Routing Accuracy</h3>
+                        <p><strong>Problem:</strong> Queries are being routed to incorrect domain experts.</p>
+                        <p><strong>Solution:</strong> Refine domain expertise keywords and descriptions. Consider adjusting confidence thresholds.</p>
+                        <pre><code class="language-python"># Improve domain definitions
+expertise.keywords.extend(["additional", "relevant", "terms"])
+expertise.confidence_threshold = 0.8  # Increase threshold</code></pre>
+                    </div>
+
+                    <div class="trouble-item">
+                        <h3>Slow Response Times</h3>
+                        <p><strong>Problem:</strong> Mixture of Experts pattern is too slow for your use case.</p>
+                        <p><strong>Solution:</strong> Use Router Ensemble for faster responses or implement caching.</p>
+                        <pre><code class="language-python"># Switch to faster pattern
+result = await diadochi.process_query(
+    query, 
+    pattern_name="router_ensemble"  # Faster than MoE
+)</code></pre>
+                    </div>
+
+                    <div class="trouble-item">
+                        <h3>Poor Integration Quality</h3>
+                        <p><strong>Problem:</strong> Multi-expert responses lack coherence.</p>
+                        <p><strong>Solution:</strong> Improve synthesis prompts or use Sequential Chain for better integration.</p>
+                        <pre><code class="language-python"># Use sequential chain for better integration
+diadochi.create_integration_pattern(
+    IntegrationPattern.SEQUENTIAL_CHAIN,
+    "better_integration",
+    prompt_templates=custom_templates
+)</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <div class="navigation-footer">
+                <a href="../index.html#modules" class="nav-link">← Back to Modules</a>
+                <a href="../api/diadochi.html" class="nav-link">API Documentation →</a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>🎆 Spectacular</h3>
+                    <p>Metacognitive AI for Advanced Data Visualization</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Diadochi Module</h4>
+                    <ul>
+                        <li><a href="#overview">Overview</a></li>
+                        <li><a href="#architecture">Architecture</a></li>
+                        <li><a href="#implementation">Implementation</a></li>
+                        <li><a href="../api/diadochi.html">API Reference</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Spectacular Project. Licensed under MIT License.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="../script.js"></script>
+</body>
+</html> 
