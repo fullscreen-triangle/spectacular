@@ -1,3 +1,9 @@
+---
+layout: page
+title: Home
+permalink: /
+---
+
 # Spectacular Documentation
 
 Welcome to the comprehensive documentation for Spectacular, the advanced metacognitive domain-specific large language model for D3.js visualization development.

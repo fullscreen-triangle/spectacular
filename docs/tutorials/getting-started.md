@@ -1,3 +1,9 @@
+---
+layout: page
+title: Getting Started
+permalink: /tutorials/getting-started/
+---
+
 # Getting Started with Spectacular
 
 ## Quick Start Guide

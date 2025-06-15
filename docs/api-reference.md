@@ -1,3 +1,9 @@
+---
+layout: page
+title: API Reference
+permalink: /api-reference/
+---
+
 # Spectacular API Reference
 
 ## Table of Contents

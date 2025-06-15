@@ -1,3 +1,9 @@
+---
+layout: page
+title: Cognitive Architecture
+permalink: /cognitive-architecture/
+---
+
 # Spectacular Cognitive Architecture Guide
 
 ## Overview
