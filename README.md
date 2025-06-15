@@ -142,7 +142,59 @@ Where:
 Every $n$ steps, the system predicts missing sketch components to validate context retention:
 $$P(component_{missing}|context_{current}) > \tau_{threshold}$$
 
-### 2.6 Hugging Face Integration Hub
+### 2.6 Diadochi: Intelligent Model Combination System
+
+The Diadochi module implements sophisticated architectural patterns for combining domain-expert models to create superior integrated AI systems. Named after Alexander's successors who divided and ruled different domains, this module intelligently orchestrates multiple specialized models to produce comprehensive expert responses.
+
+**Key Features:**
+- **Router-Based Ensembles**: Intelligent query routing to appropriate domain experts
+- **Sequential Chaining**: Progressive domain analysis through expert chains
+- **Mixture of Experts**: Confidence-based weighting and response synthesis
+- **Specialized System Prompts**: Single-model multi-expertise approaches
+- **Knowledge Distillation**: Cross-domain knowledge transfer
+- **Multi-domain RAG**: Specialized knowledge base integration
+
+**Integration Patterns:**
+```python
+from spectacular import DiadochiOrchestrator, DomainExpertise, IntegrationPattern
+
+# Initialize the orchestrator
+diadochi = DiadochiOrchestrator()
+
+# Define domain expertise
+viz_expertise = DomainExpertise(
+    domain="data_visualization",
+    description="Expert in D3.js and visualization principles",
+    keywords=["chart", "graph", "d3", "svg", "interactive"],
+    reasoning_patterns=["visual encoding", "chart selection"]
+)
+
+# Register domain expert
+diadochi.register_domain_expert("visualization", model, viz_expertise)
+
+# Create integration patterns
+diadochi.create_integration_pattern(
+    IntegrationPattern.MIXTURE_OF_EXPERTS, 
+    "moe_pattern"
+)
+
+# Process multi-domain queries
+result = await diadochi.process_query(
+    "Create an accessible scatter plot with statistical significance indicators"
+)
+```
+
+**Architectural Patterns:**
+
+| Pattern | Use Case | Strengths | Computational Cost |
+|---------|----------|-----------|-------------------|
+| **Router Ensemble** | Clear domain boundaries | High efficiency, specialization | Low |
+| **Sequential Chain** | Progressive analysis needed | Deep integration, context building | Medium |
+| **Mixture of Experts** | Multi-domain queries | Comprehensive responses | High |
+| **System Prompts** | Resource constraints | Single model, tight integration | Low |
+| **Knowledge Distillation** | Production deployment | Fast inference, integrated knowledge | Medium |
+
+### 2.7 Hugging Face Integration Hub
 
 The Hugging Face Integration Hub provides access to state-of-the-art pre-trained models for enhanced plot construction and multi-modal reasoning:
 
@@ -173,7 +225,7 @@ class HuggingFaceOrchestrator:
         return self.vision_model(sketch_image)
 ```
 
-### 2.7 Integration and Orchestration Framework
+### 2.8 Integration and Orchestration Framework
 
 | Module | Primary Function | Technologies | Reasoning Type |
 |--------|------------------|--------------|----------------|
@@ -182,6 +234,7 @@ class HuggingFaceOrchestrator:
 | **Mzekezeke** | Bayesian evidence network & optimization | PyMC, TensorFlow Probability, NetworkX | Probabilistic reasoning |
 | **Zengeza** | MDP state management & utility optimization | Gym, Stable-Baselines3, Custom RL | Sequential decision making |
 | **Nicotine** | Contextual sketching & validation | PIL, OpenCV, Predictive Models | Visual-contextual reasoning |
+| **Diadochi** | Intelligent model combination & domain expertise | Multi-model orchestration, Domain routing | Multi-expert reasoning |
 | **HuggingFace Hub** | Multi-modal model integration & API access | Transformers, HF Hub, AutoModels | Multi-modal AI reasoning |
 | **d3-precursor** | Knowledge extraction & model training | Python, SpaCy, PyTorch | Information extraction |
 | **d3-receptor** | LLM inference & visualization rendering | React, TypeScript, D3.js | Code generation |
@@ -225,32 +278,35 @@ graph TD
     B --> D[Nicotine - Initial Sketch]
     B --> E[Mzekezeke - Evidence Network]
     B --> F[Zengeza - MDP Planning]
-    B --> G[HuggingFace Hub]
+    B --> G[Diadochi - Model Combination]
+    B --> H[HuggingFace Hub]
     
-    C --> H[Fuzzy Rules Application]
-    D --> I[Context Sketching]
-    E --> J[Bayesian Inference]
-    F --> K[State Transition]
-    G --> L[Model Selection & API Calls]
+    C --> I[Fuzzy Rules Application]
+    D --> J[Context Sketching]
+    E --> K[Bayesian Inference]
+    F --> L[State Transition]
+    G --> M[Domain Expert Coordination]
+    H --> N[Model Selection & API Calls]
     
-    H --> M[Code Generation Strategy]
-    I --> M
-    J --> M
-    K --> M
-    L --> M
+    I --> O[Code Generation Strategy]
+    J --> O
+    K --> O
+    L --> O
+    M --> O
+    N --> O
     
-    M --> N[d3-precursor - Knowledge]
-    M --> O[d3-receptor - Generation]
-    M --> P[HF Code Models]
+    O --> P[d3-precursor - Knowledge]
+    O --> Q[d3-receptor - Generation]
+    O --> R[HF Code Models]
     
-    N --> Q[Response Generation]
-    O --> Q
-    P --> Q
+    P --> S[Response Generation]
+    Q --> S
+    R --> S
     
-    Q --> R[Metacognitive Validation]
-    R --> S{Quality Check}
-    S -->|Pass| T[Final Output]
-    S -->|Fail| B
+    S --> T[Metacognitive Validation]
+    T --> U{Quality Check}
+    U -->|Pass| V[Final Output]
+    U -->|Fail| B
 ```
 
 ## 4. Theoretical Foundations and Mathematical Framework
