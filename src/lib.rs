@@ -13,6 +13,9 @@ pub mod js_engine;
 pub mod config;
 pub mod error;
 
+// Chigutiro: High-performance crossfiltering system
+pub mod chigutiro;
+
 // Re-export main types
 pub use crate::core::{SpectacularEngine, QueryContext, VisualizationResult};
 pub use crate::data::{DataProcessor, DataReduction, ScientificDataset};
@@ -22,6 +25,12 @@ pub use crate::orchestrator_client::MetacognitiveClient;
 pub use crate::js_engine::{JavaScriptDebugger, D3CodeValidator};
 pub use crate::config::SpectacularConfig;
 pub use crate::error::{SpectacularError, Result};
+
+// Re-export Chigutiro types
+pub use crate::chigutiro::{
+    Chigutiro, ChigutiroConfig, Record, JsonRecord, 
+    PerformanceMetrics, ChigutiroError, ChigutiroResult
+};
 
 use tracing::{info, warn};
 use std::sync::Arc;
