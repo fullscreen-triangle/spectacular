@@ -1,0 +1,99 @@
+[package]
+name = "spectacular"
+version = "0.1.0"
+edition = "2021"
+authors = ["Kundai Farai Sachikonye"]
+description = "High-performance scientific visualization system with hybrid logical programming"
+repository = "https://github.com/fullscreen-triangle/spectacular"
+license = "MIT"
+keywords = ["visualization", "scientific", "d3", "fuzzy-logic", "ai"]
+
+[dependencies]
+# Async runtime and core
+tokio = { version = "1.35", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# Serialization and data handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+bincode = "1.3"
+
+# HTTP and networking
+reqwest = { version = "0.11", features = ["json", "stream"] }
+hyper = { version = "0.14", features = ["full"] }
+tonic = "0.10"  # For gRPC communication with metacognitive orchestrator
+
+# Scientific computing and data processing
+ndarray = "0.15"
+ndarray-linalg = "0.16"
+nalgebra = "0.32"
+faer = "0.15"  # High-performance linear algebra
+polars = { version = "0.36", features = ["lazy", "streaming", "parquet", "json"] }
+arrow = "50.0"
+
+# Fuzzy logic and logical programming
+fuzzy-logic = "0.2"
+prolog = "0.1"  # Prolog interpreter
+clingo = "0.8"  # Answer Set Programming
+
+# AI/ML integrations
+candle-core = "0.3"  # Rust ML framework
+candle-nn = "0.3"
+candle-transformers = "0.3"
+tokenizers = "0.15"
+hf-hub = "0.3"  # HuggingFace Hub integration
+
+# JavaScript/V8 integration for debugging
+rusty_v8 = "0.83"
+deno_core = "0.245"
+
+# Performance and parallelism
+rayon = "1.8"
+crossbeam = "0.8"
+parking_lot = "0.12"
+dashmap = "5.5"
+
+# Logging and monitoring
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+metrics = "0.21"
+prometheus = "0.13"
+
+# Configuration and CLI
+clap = { version = "4.4", features = ["derive"] }
+config = "0.14"
+directories = "5.0"
+
+# Database and caching
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid"] }
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Utilities
+uuid = { version = "1.6", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+anyhow = "1.0"
+once_cell = "1.19"
+lazy_static = "1.4"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+tokio-test = "0.4"
+
+[build-dependencies]
+tonic-build = "0.10"
+
+[[bin]]
+name = "spectacular"
+path = "src/main.rs"
+
+[lib]
+name = "spectacular"
+path = "src/lib.rs"
+
+[[bench]]
+name = "data_processing"
+harness = false 
