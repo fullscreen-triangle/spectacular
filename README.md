@@ -28,39 +28,33 @@
 
 </div>
 
-Spectacular is a high-performance scientific visualization system designed to handle massive datasets with intelligent data reduction and automated D3.js code generation. It uses hybrid logical programming with fuzzy logic (Pretoria scripts) to make intelligent charting decisions.
+Spectacular is a high-performance scientific visualization execution engine designed to handle massive datasets with intelligent data reduction and blazing-fast D3.js rendering. Rather than making visualization decisions itself, Spectacular receives sophisticated directions from external metacognitive engines like **Autobahn** and focuses purely on optimal execution.
 
 ## 🎯 Key Features
 
-### 🚀 **Performance-First Architecture**
+### 🚀 **Performance-First Execution Engine**
 - **Rust-powered** for maximum efficiency and memory safety
 - **Parallel data processing** using Rayon for multi-core utilization
 - **Intelligent data reduction** for datasets with millions of points
-- **Streaming data support** for real-time visualizations
+- **Streaming data support** for real-time biological simulations
 
-### 🧠 **Hybrid Reasoning System (Pretoria)**
-- **Fuzzy logic engine** for handling uncertainty in visualization decisions
-- **Prolog-style logical programming** for rule-based chart selection
-- **Answer Set Programming (ASP)** for complex optimization problems
-- **Adaptive learning** from user feedback and successful visualizations
+### 🔗 **External Metacognitive Integration**
+- **gRPC/HTTP client** for seamless communication with reasoning engines
+- **Strategy execution** based on external cognitive analysis
+- **Real-time command processing** with sub-millisecond response times
+- **Performance metrics reporting** back to metacognitive orchestrators
 
-### 🤖 **AI-Powered Code Generation**
-- **HuggingFace integration** for state-of-the-art code generation models
-- **JavaScript/TypeScript debugging** with V8 engine integration
-- **Automated optimization** and accessibility improvements
-- **Real-time syntax validation** and error correction
-
-### 🔗 **External Orchestrator Integration**
-- **gRPC/HTTP client** for metacognitive orchestrator communication
-- **Pluggable architecture** for different reasoning backends
-- **Distributed processing** support for large-scale deployments
+### 🧬 **Scientific Domain Optimization**
+- **Biological data structures** for oscillatory dynamics and membrane states
+- **Quantum-biological visualizations** for coherence patterns and tunneling dynamics
+- **Multi-scale rendering** from molecular to cellular to organism levels
+- **ATP-constrained trajectory visualization** for metabolic computation systems
 
 ### ⚡ **Chigutiro: High-Performance Crossfiltering**
-- **Rust-native crossfilter** inspired by Crossfilter.js but optimized for scientific datasets
+- **Rust-native crossfilter** optimized for scientific datasets
 - **Probabilistic filtering** using Bloom filters and advanced data structures
 - **Sub-millisecond filtering** for coordinated views with millions of records
-- **Adaptive algorithms** that intelligently switch filtering strategies
-- **Quantum-inspired search** and machine learning guided filtering
+- **Adaptive algorithms** that intelligently switch filtering strategies based on external guidance
 - **Real-time chart coordination** with incremental updates
 - **Memory-efficient indexes** with compression and bit manipulation optimizations
 
@@ -68,37 +62,39 @@ Spectacular is a high-performance scientific visualization system designed to ha
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Spectacular Engine                       │
+│                 Spectacular Execution Engine                │
 ├─────────────────────────────────────────────────────────────┤
-│  Query Context  │  Visualization Result  │  System Health   │
-├─────────────────┼────────────────────────┼─────────────────┤
-│                 │                        │                 │
-│ ┌─────────────┐ │ ┌────────────────────┐ │ ┌─────────────┐ │
-│ │    Data     │ │ │      Pretoria      │ │ │ HuggingFace │ │
-│ │ Processor   │ │ │ Fuzzy Logic Engine │ │ │ Integration │ │
-│ │             │ │ │                    │ │ │             │ │
-│ │ • Reduction │ │ │ • Fuzzy Rules      │ │ │ • CodeT5    │ │
-│ │ • Sampling  │ │ │ • Logic Programs   │ │ │ • GPT Models│ │
-│ │ • Streaming │ │ │ • Chart Selection  │ │ │ • Debugging │ │
-│ └─────────────┘ │ └────────────────────┘ │ └─────────────┘ │
-│                 │                        │                 │
-│ ┌─────────────┐ │ ┌────────────────────┐ │ ┌─────────────┐ │
-│ │  Chigutiro  │ │ │   Orchestrator     │ │ │    Cache    │ │
-│ │Crossfilter  │ │ │     Client         │ │ │  & Metrics  │ │
-│ │             │ │ │                    │ │ │             │ │
-│ │ • Probabilis│ │ │ • gRPC/HTTP        │ │ │ • Redis     │ │
-│ │ • Adaptive  │ │ │ • Strategy Request │ │ │ • Prometheus│ │
-│ │ • Real-time │ │ │ • Load Balancing   │ │ │ • Health    │ │
-│ └─────────────┘ │ └────────────────────┘ │ └─────────────┘ │
-│                 │                        │                 │
-│ ┌─────────────┐ │                        │                 │
-│ │ JavaScript  │ │                        │                 │
-│ │  Debugger   │ │                        │                 │
-│ │             │ │                        │                 │
-│ │ • V8 Engine │ │                        │                 │
-│ │ • Validation│ │                        │                 │
-│ │ • TypeScript│ │                        │                 │
-│ └─────────────┘ │                        │                 │
+│  External Commands │  Visualization Output  │  Performance  │
+├────────────────────┼────────────────────────┼──────────────┤
+│                    │                        │              │
+│ ┌────────────────┐ │ ┌────────────────────┐ │ ┌──────────┐ │
+│ │   Autobahn     │ │ │    High-Speed      │ │ │ Metrics  │ │
+│ │ Metacognitive  │ │ │   D3.js Renderer   │ │ │ & Health │ │
+│ │    Engine      │ │ │                    │ │ │          │ │
+│ │                │ │ │ • Biological Viz   │ │ │ • Redis  │ │
+│ │ • Oscillatory  │ │ │ • Molecular Render │ │ │ • Grafana│ │
+│ │ • Quantum Bio  │ │ │ • Multi-scale      │ │ │ • Alerts │ │
+│ │ • Consciousness│ │ │ • Real-time        │ │ │          │ │
+│ └────────────────┘ │ └────────────────────┘ │ └──────────┘ │
+│                    │                        │              │
+│ ┌────────────────┐ │ ┌────────────────────┐ │ ┌──────────┐ │
+│ │   Chigutiro    │ │ │   Data Processing  │ │ │ Cache &  │ │
+│ │ Crossfiltering │ │ │      Engine        │ │ │ Storage  │ │
+│ │                │ │ │                    │ │ │          │ │
+│ │ • 10M+ Records │ │ │ • Scientific Data  │ │ │ • Parquet│ │
+│ │ • Sub-ms Query │ │ │ • ATP Trajectories │ │ │ • Arrow  │ │
+│ │ • Probabilistic│ │ │ • Membrane States  │ │ │ • Polars │ │
+│ │ • Coordinated  │ │ │ • Oscillation Data │ │ │          │ │
+│ └────────────────┘ │ └────────────────────┘ │ └──────────┘ │
+│                    │                        │              │
+│ ┌────────────────┐ │                        │              │
+│ │   JavaScript   │ │                        │              │
+│ │   Execution    │ │                        │              │
+│ │                │ │                        │              │
+│ │ • V8 Engine    │ │                        │              │
+│ │ • Validation   │ │                        │              │
+│ │ • Optimization │ │                        │              │
+│ └────────────────┘ │                        │              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -395,59 +391,68 @@ let large_dataset = load_scientific_data("genomics_data.parquet").await?;
 - **HDF5/NetCDF** for scientific data formats
 - **Real-time streams** via WebSocket/gRPC
 
-## 🎯 Pretoria: The Reasoning Engine
+## 🧠 Integration with Autobahn Metacognitive Engine
 
-### Fuzzy Logic for Uncertainty
+### Oscillatory Bio-Metabolic Processing
 
-```yaml
-# Example fuzzy rule for chart selection
-- rule: "scatter_for_correlation"
-  condition: 
-    query_contains: ["correlation", "relationship"]
-    data_complexity: "medium"
-    visual_complexity: "low"
-  conclusion:
-    chart_type: "scatter"
-    confidence: 0.8
+Spectacular receives sophisticated visualization strategies from **Autobahn**, which uses:
+
+- **Universal Oscillation Equations** for multi-scale biological data analysis
+- **ATP-Constrained Dynamics** for metabolically realistic computation
+- **Quantum-Enhanced Processing** through ENAQT optimization
+- **Consciousness Emergence Modeling** for complex pattern recognition
+
+### External Command Processing
+
+```rust
+// Spectacular receives and executes commands from Autobahn
+use spectacular::orchestrator::{AutobahnClient, VisualizationCommand};
+
+let autobahn_client = AutobahnClient::new("grpc://localhost:50051").await?;
+let command = autobahn_client.request_visualization_strategy(&biological_data).await?;
+
+match command {
+    VisualizationCommand::MolecularRendering { 
+        oscillation_patterns, 
+        membrane_states, 
+        atp_trajectories 
+    } => {
+        // Execute high-performance molecular visualization
+        let result = spectacular_engine.render_molecular_dynamics(
+            &oscillation_patterns,
+            &membrane_states,
+            &atp_trajectories
+        ).await?;
+    }
+    VisualizationCommand::CoordinatedDashboard { 
+        views, 
+        crossfilter_config,
+        update_strategy 
+    } => {
+        // Execute coordinated multi-view dashboard
+        let dashboard = chigutiro_engine.create_coordinated_views(
+            &views,
+            &crossfilter_config
+        ).await?;
+    }
+}
 ```
 
-### Logical Programming for Rules
+### Performance Metrics Reporting
 
-```prolog
-% Chart selection logic
-recommend_chart(scatter) :- 
-    query_contains(correlation),
-    numeric_data(X, Y),
-    data_size(N), N < 10000.
+Spectacular continuously reports execution metrics back to Autobahn for optimization:
 
-recommend_chart(heatmap) :-
-    query_contains(correlation_matrix),
-    multiple_variables(Vars),
-    length(Vars, L), L > 5.
-```
+```rust
+// Performance metrics sent back to Autobahn for learning
+let metrics = PerformanceMetrics {
+    rendering_time_ms: 15.2,
+    memory_usage_mb: 45.8,
+    crossfilter_efficiency: 0.94,
+    data_reduction_ratio: 0.99,
+    biological_authenticity_score: 0.87,
+};
 
-## 🤖 AI Model Integration
-
-### HuggingFace Models
-
-Spectacular integrates with multiple AI models for optimal code generation:
-
-- **CodeT5** for D3.js code generation
-- **GPT-3.5/4** for complex interaction patterns
-- **BERT** for query understanding and intent classification
-- **Custom models** trained on visualization patterns
-
-### JavaScript Debugging
-
-Real-time validation and optimization:
-
-```javascript
-// Generated code is automatically:
-// 1. Syntax validated
-// 2. Performance optimized
-// 3. Accessibility enhanced
-// 4. Error handling added
-// 5. TypeScript compatible
+autobahn_client.report_execution_metrics(metrics).await?;
 ```
 
 ## 📊 Performance Benchmarks
@@ -492,26 +497,28 @@ data_processing:
   compression_enabled: true       # Compress cached data
 ```
 
-### Pretoria Engine
+### Autobahn Integration
 
 ```yaml
-pretoria:
-  max_fuzzy_rules: 1000          # Maximum fuzzy rules to load
-  confidence_threshold: 0.7       # Minimum confidence for decisions
-  enable_logical_programming: true # Enable Prolog-style reasoning
-  optimization_level: 2           # 0=fast, 3=thorough
+autobahn:
+  endpoint: "grpc://localhost:50051"  # Autobahn metacognitive engine
+  timeout_seconds: 30                 # Command timeout
+  max_retries: 3                      # Retry failed commands
+  enable_streaming: true              # Real-time biological data
+  biological_authenticity_threshold: 0.85  # Minimum authenticity score
+  quantum_coherence_reporting: true   # Report quantum processing metrics
+  atp_budget_tracking: true          # Track metabolic computation costs
 ```
 
-### HuggingFace Integration
+### Biological Data Processing
 
 ```yaml
-huggingface:
-  api_key: "your_token"          # HF API token
-  preferred_models:              # Model priority order
-    - "Salesforce/codet5-large"
-    - "microsoft/DialoGPT-medium"
-  enable_local_models: false     # Download models locally
-  gpu_enabled: true              # Use GPU acceleration
+biological:
+  oscillation_sampling_rate: 1000    # Hz for oscillatory data
+  membrane_state_precision: 0.001    # Quantum state precision
+  atp_trajectory_resolution: 0.1     # ATP concentration resolution
+  multi_scale_coupling: true         # Enable cross-scale analysis
+  consciousness_emergence_detection: true  # Monitor consciousness patterns
 ```
 
 ### Chigutiro Crossfiltering
@@ -590,16 +597,31 @@ let ensemble_config = EnsembleConfig {
 
 ## 🔬 Research Applications
 
-Spectacular with Chigutiro has been successfully used in:
+Spectacular serves as the high-performance execution engine for cutting-edge biological and quantum research:
 
-- **Genomics**: Interactive exploration of gene expression matrices with 100M+ data points using coordinated heatmaps and scatter plots
-- **Climate Science**: Real-time filtering of temperature/precipitation time series across global weather stations
-- **Particle Physics**: Sub-second filtering of LHC collision events with coordinated energy/momentum visualizations
-- **Astronomy**: Interactive sky surveys with billions of stellar observations using probabilistic membership queries
-- **Materials Science**: Molecular dynamics trajectory analysis with coordinated structural and temporal views
-- **Neuroscience**: Spike train analysis across thousands of neurons with millisecond precision
-- **Epidemiology**: Interactive pandemic modeling with geographic and temporal filtering
-- **Financial Analytics**: High-frequency trading data analysis with coordinated price/volume views
+### **Quantum Biology & Consciousness Research**
+- **Bene Gesserit Integration**: Visualizing oscillatory entropy patterns and membrane quantum states in real-time
+- **ENAQT Coherence Mapping**: Rendering quantum transport optimization across biological membranes
+- **Consciousness Emergence**: Tracking Φ (phi) values and integrated information across neural networks
+- **Fire-Light Coupling**: Visualizing 650nm wavelength effects on quantum ion channel dynamics
+
+### **Biological Simulation & Molecular Dynamics**
+- **ATP-Constrained Trajectories**: Real-time visualization of `dx/dATP` metabolic computation paths
+- **Membrane Patch Dynamics**: Coordinated views of lipid bilayer quantum states and protein conformations
+- **Multi-Scale Biological Systems**: From molecular oscillations to cellular behavior to organism-level patterns
+- **Behavioral Phenotypic Expression**: Tracking gorilla paradigm behavioral acquisition through environmental interaction
+
+### **Advanced Scientific Computing**
+- **Nebuchadnezzar Circuit Integration**: Visualizing hierarchical probabilistic electrical circuits with quantum-classical interfaces
+- **Temporal Coordinate Navigation**: Rendering predetermined optimal states and trajectory convergence patterns
+- **Social Consciousness Coupling**: Mapping fire circle communication complexity and governance entropy optimization
+- **Thermodynamic Ethics Visualization**: Displaying efficiency-evil incompatibility patterns and moral category dissolution
+
+### **High-Performance Data Processing**
+- **100M+ Biological Records**: Sub-millisecond crossfiltering of oscillation endpoints and membrane states
+- **Real-Time Biological Dashboards**: Coordinated views updating at biological time scales (microsecond precision)
+- **Probabilistic Quantum Data**: Bloom filter optimization for uncertain quantum measurement visualization
+- **Scientific Dataset Authenticity**: Maintaining biological realism while achieving visualization performance
 
 ## 🤝 Contributing
 
@@ -626,10 +648,11 @@ cargo doc --open
 
 ### Architecture Decisions
 
-- **Rust for performance**: Scientific datasets require maximum efficiency
-- **Hybrid reasoning**: Combines fuzzy logic flexibility with logical programming precision
-- **External orchestrator**: Allows for pluggable metacognitive systems
-- **V8 integration**: Real-time JavaScript validation and optimization
+- **Rust for performance**: Biological quantum datasets require maximum efficiency and memory safety
+- **External metacognitive integration**: Receives sophisticated reasoning from Autobahn rather than making decisions internally
+- **Scientific domain optimization**: Purpose-built for biological, quantum, and consciousness research applications
+- **Real-time biological constraints**: Operates at biological time scales with metabolic authenticity
+- **Execution-focused design**: Optimizes for command execution speed rather than reasoning complexity
 
 ## 📜 License
 
