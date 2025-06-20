@@ -9,6 +9,9 @@ pub mod data;
 pub mod pretoria;
 pub mod hf_integration;
 pub mod orchestrator_client;
+pub mod autobahn_client;
+pub mod biological;
+pub mod molecular_renderer;
 pub mod js_engine;
 pub mod config;
 pub mod error;
@@ -22,8 +25,11 @@ pub use crate::data::{DataProcessor, DataReduction, ScientificDataset};
 pub use crate::pretoria::{PretoriaEngine, LogicalProgram, FuzzyRule};
 pub use crate::hf_integration::{HuggingFaceClient, CodeGeneration, DebugResult};
 pub use crate::orchestrator_client::MetacognitiveClient;
+pub use crate::autobahn_client::{AutobahnClient, VisualizationCommand, ExecutionMetrics};
+pub use crate::biological::{BiologicalData, BiologicalDataType, OscillationPattern, MembraneState, AtpTrajectory};
+pub use crate::molecular_renderer::{MolecularRenderer, MolecularVisualizationResult, MolecularRendererConfig};
 pub use crate::js_engine::{JavaScriptDebugger, D3CodeValidator};
-pub use crate::config::SpectacularConfig;
+pub use crate::config::{SpectacularConfig, AutobahnConfig};
 pub use crate::error::{SpectacularError, Result};
 
 // Re-export Chigutiro types

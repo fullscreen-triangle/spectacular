@@ -26,6 +26,27 @@ pub enum SpectacularError {
     #[error("Orchestrator communication error: {0}")]
     Orchestrator(String),
     
+    #[error("Autobahn metacognitive engine error: {0}")]
+    AutobahnError(String),
+    
+    #[error("Biological data validation error: {0}")]
+    BiologicalValidation(String),
+    
+    #[error("Quantum coherence error: {0}")]
+    QuantumCoherence(String),
+    
+    #[error("ATP constraint violation: {0}")]
+    AtpConstraint(String),
+    
+    #[error("Consciousness emergence detection error: {0}")]
+    ConsciousnessEmergence(String),
+    
+    #[error("Molecular rendering error: {0}")]
+    MolecularRendering(String),
+    
+    #[error("Unsupported operation: {0}")]
+    UnsupportedOperation(String),
+    
     #[error("Unsupported data source: {0}")]
     UnsupportedDataSource(String),
     
@@ -59,6 +80,9 @@ impl SpectacularError {
             SpectacularError::Timeout { .. } => true,
             SpectacularError::HuggingFace(_) => true,
             SpectacularError::Orchestrator(_) => true,
+            SpectacularError::AutobahnError(_) => true,
+            SpectacularError::QuantumCoherence(_) => true,
+            SpectacularError::MolecularRendering(_) => true,
             _ => false,
         }
     }
@@ -68,10 +92,16 @@ impl SpectacularError {
         match self {
             SpectacularError::Configuration(_) => ErrorSeverity::Critical,
             SpectacularError::Internal(_) => ErrorSeverity::Critical,
+            SpectacularError::BiologicalValidation(_) => ErrorSeverity::Critical,
+            SpectacularError::AtpConstraint(_) => ErrorSeverity::High,
             SpectacularError::SystemResource(_) => ErrorSeverity::High,
+            SpectacularError::QuantumCoherence(_) => ErrorSeverity::High,
+            SpectacularError::ConsciousnessEmergence(_) => ErrorSeverity::High,
             SpectacularError::DataProcessing(_) => ErrorSeverity::Medium,
             SpectacularError::Validation(_) => ErrorSeverity::Medium,
             SpectacularError::JavaScript(_) => ErrorSeverity::Medium,
+            SpectacularError::MolecularRendering(_) => ErrorSeverity::Medium,
+            SpectacularError::AutobahnError(_) => ErrorSeverity::Medium,
             SpectacularError::Network(_) => ErrorSeverity::Low,
             SpectacularError::Timeout { .. } => ErrorSeverity::Low,
             _ => ErrorSeverity::Medium,

@@ -10,6 +10,7 @@ pub struct SpectacularConfig {
     pub pretoria: PretoriaConfig,
     pub huggingface: HuggingFaceConfig,
     pub orchestrator: OrchestratorConfig,
+    pub autobahn: AutobahnConfig,
     pub javascript: JavaScriptConfig,
     pub system: SystemConfig,
 }
@@ -21,6 +22,7 @@ impl Default for SpectacularConfig {
             pretoria: PretoriaConfig::default(),
             huggingface: HuggingFaceConfig::default(),
             orchestrator: OrchestratorConfig::default(),
+            autobahn: AutobahnConfig::default(),
             javascript: JavaScriptConfig::default(),
             system: SystemConfig::default(),
         }
