@@ -118,6 +118,23 @@ pub struct OrchestratorConfig {
     pub enable_streaming: bool,
 }
 
+/// Configuration for Autobahn metacognitive engine
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutobahnConfig {
+    pub endpoint: String,
+    pub timeout_seconds: u64,
+    pub max_retries: usize,
+    pub enable_streaming: bool,
+    pub biological_authenticity_threshold: f64,
+    pub quantum_coherence_reporting: bool,
+    pub atp_budget_tracking: bool,
+    pub consciousness_emergence_detection: bool,
+    pub oscillation_sampling_rate: f64,
+    pub membrane_state_precision: f64,
+    pub atp_trajectory_resolution: f64,
+    pub multi_scale_coupling: bool,
+}
+
 impl Default for OrchestratorConfig {
     fn default() -> Self {
         Self {
@@ -128,6 +145,25 @@ impl Default for OrchestratorConfig {
             use_grpc: true,
             grpc_port: 50051,
             enable_streaming: false,
+        }
+    }
+}
+
+impl Default for AutobahnConfig {
+    fn default() -> Self {
+        Self {
+            endpoint: "grpc://localhost:50051".to_string(),
+            timeout_seconds: 30,
+            max_retries: 3,
+            enable_streaming: true,
+            biological_authenticity_threshold: 0.85,
+            quantum_coherence_reporting: true,
+            atp_budget_tracking: true,
+            consciousness_emergence_detection: true,
+            oscillation_sampling_rate: 1000.0,
+            membrane_state_precision: 0.001,
+            atp_trajectory_resolution: 0.1,
+            multi_scale_coupling: true,
         }
     }
 }
