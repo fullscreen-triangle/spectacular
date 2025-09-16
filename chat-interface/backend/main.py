@@ -16,32 +16,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
 
-# Import our validation framework
+# Import our AI orchestration framework
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from validation import TripleValidator, TripleValidationResult
-from visual_reasoning.core.visual_embeddings import VisualEmbeddingProcessor, VisualEmbedding
+from spectacular.reasoning_orchestrator import ReasoningOrchestrator
+from validation import TripleValidationResult
+from visual_reasoning.core.visual_embeddings import VisualEmbedding
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global instances
-triple_validator: TripleValidator = None
-visual_processor: VisualEmbeddingProcessor = None
+reasoning_orchestrator: ReasoningOrchestrator = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle management."""
-    global triple_validator, visual_processor
+    global reasoning_orchestrator
     
-    # Initialize core components
-    logger.info("Initializing Triple Validation Framework...")
-    triple_validator = TripleValidator()
-    visual_processor = VisualEmbeddingProcessor()
-    logger.info("Framework initialized successfully")
+    # Initialize AI-orchestrated reasoning system
+    logger.info("Initializing AI-Orchestrated Reasoning System...")
+    
+    # Configuration for LLM models (would come from environment variables)
+    orchestrator_config = {
+        'openai_api_key': os.getenv('OPENAI_API_KEY', 'your-api-key-here'),
+        'query_model': 'gpt-4-turbo-preview',
+        'reasoning_model': 'gpt-4-turbo-preview',
+        'viz_model': 'gpt-4-turbo-preview',
+        'synthesis_model': 'gpt-4-turbo-preview'
+    }
+    
+    reasoning_orchestrator = ReasoningOrchestrator(orchestrator_config)
+    logger.info("AI Reasoning Orchestrator initialized successfully")
     
     yield
     
@@ -120,112 +129,125 @@ async def process_chat_message(
     background_tasks: BackgroundTasks
 ) -> ChatResponse:
     """
-    Process chat message with triple validation plots.
+    Process chat message with AI-orchestrated sophisticated reasoning pipeline.
     
-    This is the main endpoint that generates three validation plots:
-    1. Ridiculous Solution Plot (Pugachev-Cobra)
-    2. Intent Recognition Plot 
-    3. Reasoning Validation Plot
+    This uses the AI reasoning orchestrator to:
+    1. Analyze query with LLM intelligence
+    2. Coordinate validation components intelligently 
+    3. Generate triple validation plots
+    4. Synthesize results with AI reasoning
     """
     
     start_time = datetime.now()
     conversation_id = request.conversation_id or f"conv_{start_time.strftime('%Y%m%d_%H%M%S')}"
     
-    logger.info("Processing chat request for conversation: %s", conversation_id)
+    logger.info("🚀 Starting AI-orchestrated processing for conversation: %s", conversation_id)
     
     try:
-        # Prepare context for validation
-        validation_context = {
+        # Prepare context for AI orchestration
+        orchestration_context = {
             'query': request.message,
             'data': request.data,
             'timestamp': start_time.isoformat(),
             'conversation_id': conversation_id,
-            **request.context
+            'user_context': request.context
         }
         
-        # Perform triple validation
-        validation_result: TripleValidationResult = await triple_validator.validate_query(
-            request.message, validation_context
+        # Run AI-orchestrated reasoning pipeline
+        orchestration_result = await reasoning_orchestrator.process_query(
+            request.message, orchestration_context
         )
         
-        # Create visual embeddings for each plot (background task for performance)
+        # Extract validation results from orchestration
+        validation_results = orchestration_result['validation_results']
+        
+        # Create visual embeddings for enhanced plots (background task)
         background_tasks.add_task(
             create_visual_embeddings_async,
-            validation_result,
+            orchestration_result['enhanced_visualizations'],
             conversation_id
         )
         
-        # Generate response text based on validation results
-        response_text = await generate_response_text(request.message, validation_result)
+        # Use AI-synthesized response
+        response_text = orchestration_result['synthesized_response']
         
-        # Format plots for response
+        # Format plots with AI insights
         plots = {
             "ridiculous": PlotData(
-                svg_content=validation_result.ridiculous.svg_content,
-                title="Pugachev-Cobra Boundary Test",
-                description=validation_result.ridiculous.ridiculous_interpretation,
-                confidence=validation_result.ridiculous.boundary_confidence,
+                svg_content=validation_results['ridiculous']['svg_content'],
+                title="AI-Generated Pugachev-Cobra Boundary Test",
+                description=validation_results['ridiculous']['interpretation'],
+                confidence=validation_results['ridiculous']['confidence'],
                 metadata={
-                    "boundary_type": validation_result.ridiculous.boundary_type,
-                    "inversion_strategy": validation_result.ridiculous.inversion_strategy,
-                    "boundary_established": validation_result.ridiculous.boundary_established
+                    "ai_reasoning": "Boundary validation to test solution space limits",
+                    "boundary_established": validation_results['ridiculous']['boundary_established'],
+                    "ai_analysis": orchestration_result['ai_analysis']
                 }
             ),
             "intent": PlotData(
-                svg_content=validation_result.intent.svg_content,
-                title="Intent Analysis",
-                description=validation_result.intent.inferred_intent,
-                confidence=validation_result.intent.intent_confidence,
+                svg_content=validation_results['intent']['svg_content'],
+                title="AI Intent Analysis & Recognition",
+                description=validation_results['intent']['inferred_intent'],
+                confidence=validation_results['intent']['intent_confidence'],
                 metadata={
-                    "alternative_intents": validation_result.intent.alternative_intents,
-                    "dimensional_analysis": validation_result.intent.dimensional_analysis,
-                    "reasoning_chain": validation_result.intent.intent_reasoning_chain
+                    "ai_reasoning": "12-dimensional environmental intent analysis",
+                    "alternative_intents": validation_results['intent']['alternatives'],
+                    "llm_analysis": orchestration_result['ai_analysis']
                 }
             ),
             "reasoning": PlotData(
-                svg_content=validation_result.reasoning.svg_content,
-                title="Reasoning Validation",
-                description=validation_result.reasoning.reasoning_explanation,
-                confidence=validation_result.reasoning.coherence_score,
+                svg_content=validation_results['reasoning']['svg_content'],
+                title="AI Reasoning Validation & Understanding",
+                description=validation_results['reasoning']['explanation'],
+                confidence=orchestration_result['reasoning_confidence'],
                 metadata={
-                    "mathematical_relationships": validation_result.reasoning.mathematical_relationships,
-                    "patterns_identified": validation_result.reasoning.data_patterns_identified,
-                    "understanding_validated": validation_result.reasoning.understanding_validated,
-                    "visualization_type": validation_result.reasoning.visualization_type
+                    "ai_reasoning": "Environmental information construction validation",
+                    "understanding_validated": validation_results['reasoning']['understanding_validated'],
+                    "patterns_identified": validation_results['reasoning']['patterns'],
+                    "ai_pipeline": orchestration_result['reasoning_pipeline']
                 }
             )
         }
         
-        processing_time = (datetime.now() - start_time).total_seconds()
+        processing_time = orchestration_result['processing_metadata']['processing_time']
         
         response = ChatResponse(
             response_text=response_text,
             plots=plots,
-            validation_passed=validation_result.validation_passed,
-            coherence_score=validation_result.coherence_score,
+            validation_passed=validation_results['validation_passed'],
+            coherence_score=validation_results['overall_coherence'],
             processing_time=processing_time,
             conversation_id=conversation_id,
             timestamp=datetime.now().isoformat(),
-            validation_details=validation_result.validation_details
+            validation_details={
+                'ai_orchestration': True,
+                'llm_models_used': orchestration_result['processing_metadata']['ai_models_used'],
+                'pipeline_steps': orchestration_result['processing_metadata']['pipeline_steps'],
+                'knowledge_items_retrieved': orchestration_result['processing_metadata']['knowledge_items_retrieved'],
+                'reasoning_confidence': orchestration_result['reasoning_confidence']
+            }
         )
         
-        logger.info("Chat request processed successfully in %.2fs", processing_time)
+        logger.info("✅ AI-orchestrated processing completed successfully in %.2fs", processing_time)
         return response
         
     except Exception as e:
-        logger.error("Error processing chat request: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+        logger.error("❌ Error in AI-orchestrated processing: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"AI Processing error: {str(e)}")
 
 # Visual Embedding Endpoint
 @app.post("/api/embeddings", response_model=EmbeddingResponse)
 async def create_visual_embedding(request: EmbeddingRequest) -> EmbeddingResponse:
-    """Create multi-dimensional visual embedding from visual content."""
+    """Create AI-enhanced multi-dimensional visual embedding from visual content."""
     
     start_time = datetime.now()
     
-    logger.info("Creating visual embedding for %s content", request.content_type)
+    logger.info("Creating AI-enhanced visual embedding for %s content", request.content_type)
     
     try:
+        # Use the orchestrator's visual processor for consistency
+        visual_processor = reasoning_orchestrator.visual_processor
+        
         embedding: VisualEmbedding = await visual_processor.create_visual_embedding(
             request.visual_content,
             request.content_type,
@@ -242,21 +264,26 @@ async def create_visual_embedding(request: EmbeddingRequest) -> EmbeddingRespons
             processing_time=processing_time
         )
         
-        logger.info("Visual embedding created in %.2fs", processing_time)
+        logger.info("✅ AI-enhanced visual embedding created in %.2fs", processing_time)
         return response
         
     except Exception as e:
-        logger.error("Error creating visual embedding: %s", str(e))
+        logger.error("❌ Error creating visual embedding: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Embedding creation error: {str(e)}")
 
 # System Status Endpoint
 @app.get("/api/status", response_model=SystemStatus)
 async def get_system_status() -> SystemStatus:
-    """Get current system status and metrics."""
+    """Get current system status and AI orchestration metrics."""
     
     try:
-        # Get validation metrics from triple validator
-        validation_metrics = triple_validator.get_validation_metrics()
+        # Get AI orchestration metrics
+        orchestrator_metrics = {
+            'llm_models_available': len(reasoning_orchestrator.llm_coordinator.models),
+            'rag_knowledge_sources': 'active',
+            'validation_components': 'integrated',
+            'visual_reasoning': 'active'
+        }
         
         # Calculate uptime (simplified)
         uptime = 3600.0  # Would be actual uptime in production
@@ -264,11 +291,15 @@ async def get_system_status() -> SystemStatus:
         status = SystemStatus(
             status="operational",
             components={
-                "triple_validator": "active",
-                "visual_processor": "active",
+                "ai_orchestrator": "active",
+                "llm_coordinator": "active", 
+                "rag_retriever": "active",
+                "triple_validator": "integrated",
+                "visual_processor": "integrated",
+                "math_visualizer": "integrated",
                 "api_service": "running"
             },
-            validation_metrics=validation_metrics,
+            validation_metrics=orchestrator_metrics,
             uptime=uptime
         )
         
@@ -295,72 +326,39 @@ async def get_conversation_history(conversation_id: str):
     }
 
 # Helper Functions
-async def generate_response_text(query: str, validation_result: TripleValidationResult) -> str:
-    """Generate response text based on validation results."""
-    
-    if validation_result.validation_passed:
-        response_parts = [
-            f"I've analyzed your query: '{query[:100]}...' using triple validation.",
-            "",
-            "✓ **Reasoning Validation**: " + (
-                "Understanding confirmed through data visualization patterns" 
-                if validation_result.reasoning.understanding_validated 
-                else "Pattern recognition needs refinement"
-            ),
-            "",
-            f"✓ **Intent Analysis**: {validation_result.intent.inferred_intent[:150]}...",
-            "",
-            f"✓ **Boundary Testing**: Pugachev-Cobra validation established solution space boundaries",
-            "",
-            f"**Coherence Score**: {validation_result.coherence_score:.2f}/1.0",
-            "",
-            "The visualizations below show my reasoning process and validate my understanding of your query."
-        ]
-    else:
-        response_parts = [
-            f"I've analyzed your query: '{query[:100]}...' but validation shows areas needing improvement.",
-            "",
-            "⚠ **Validation Concerns**:",
-            f"- Coherence Score: {validation_result.coherence_score:.2f}/1.0 (threshold: 0.7)",
-            f"- Intent Confidence: {validation_result.intent.intent_confidence:.2f}/1.0",
-            f"- Understanding Validated: {'Yes' if validation_result.reasoning.understanding_validated else 'No'}",
-            "",
-            "The visualizations below show where my reasoning may be incomplete or incorrect."
-        ]
-    
-    return "\n".join(response_parts)
-
 async def create_visual_embeddings_async(
-    validation_result: TripleValidationResult,
+    enhanced_visualizations: Dict[str, Any],
     conversation_id: str
 ):
-    """Create visual embeddings for validation plots (background task)."""
+    """Create visual embeddings for AI-enhanced validation plots (background task)."""
     
     try:
+        # Extract the visual processor from the orchestrator
+        visual_processor = reasoning_orchestrator.visual_processor
+        
         # Create embeddings for each plot
         embeddings = {}
         
-        for plot_name, plot_data in [
-            ("ridiculous", validation_result.ridiculous),
-            ("intent", validation_result.intent), 
-            ("reasoning", validation_result.reasoning)
-        ]:
-            if hasattr(plot_data, 'svg_content'):
+        triple_plots = enhanced_visualizations.get('triple_validation_plots', {})
+        
+        for plot_name, svg_content in triple_plots.items():
+            if svg_content:
                 embedding = await visual_processor.create_visual_embedding(
-                    plot_data.svg_content,
+                    svg_content,
                     content_type="svg",
                     context={
                         "plot_type": plot_name,
-                        "conversation_id": conversation_id
+                        "conversation_id": conversation_id,
+                        "ai_enhanced": True
                     }
                 )
                 embeddings[plot_name] = embedding
         
         # Store embeddings for future use (would be database in production)
-        logger.info("Created visual embeddings for conversation: %s", conversation_id)
+        logger.info("✅ Created AI-enhanced visual embeddings for conversation: %s", conversation_id)
         
     except Exception as e:
-        logger.error("Error creating visual embeddings: %s", str(e))
+        logger.error("❌ Error creating visual embeddings: %s", str(e))
 
 # Development Server
 if __name__ == "__main__":
