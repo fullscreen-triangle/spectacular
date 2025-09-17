@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: system-ui, sans-serif;
+  }
+  
+  body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply backdrop-blur-md bg-white/10 border border-white/20;
+  }
+  
+  .neural-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  
+  .bayesian-glow {
+    box-shadow: 0 0 20px rgba(229, 84, 255, 0.3);
+  }
+  
+  .plot-container {
+    @apply glass-effect rounded-xl p-6 hover:bg-white/15 transition-all duration-300;
+  }
+  
+  .chat-message {
+    @apply max-w-none prose prose-invert prose-blue;
+  }
+  
+  .chat-input {
+    @apply glass-effect rounded-xl px-4 py-3 text-white placeholder-white/60 
+           border-white/30 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20
+           bg-white/5 transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 
+           hover:to-purple-700 text-white font-medium px-6 py-3 rounded-xl
+           shadow-lg hover:shadow-xl transition-all duration-200 
+           transform hover:scale-105 neural-glow;
+  }
+  
+  .btn-secondary {
+    @apply glass-effect text-white font-medium px-4 py-2 rounded-lg
+           hover:bg-white/20 transition-all duration-200;
+  }
+  
+  .status-indicator {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-healthy {
+    @apply status-indicator bg-green-100 text-green-800;
+  }
+  
+  .status-processing {
+    @apply status-indicator bg-blue-100 text-blue-800;
+  }
+  
+  .status-error {
+    @apply status-indicator bg-red-100 text-red-800;
+  }
+}
+
+@layer utilities {
+  .animation-delay-75 {
+    animation-delay: 75ms;
+  }
+  
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+  
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* SVG plot styling */
+.plot-svg {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Loading animations */
+@keyframes pulse-neural {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes pulse-bayesian {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(229, 84, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(229, 84, 255, 0.6);
+  }
+}
+
+.processing-neural {
+  animation: pulse-neural 2s infinite;
+}
+
+.processing-bayesian {
+  animation: pulse-bayesian 2s infinite;
+}
