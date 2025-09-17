@@ -2,7 +2,7 @@
 
 <p align="center">
   <h1 align="center">Spectacular</h1>
-  <h3 align="center"><em>Insights at the speed of thought</em></h3>
+  <h3 align="center"><em>Looking inside from inside </em></h3>
 </p>
 
 ![Cheetah Logo](assets/gif/wireframe-cheetah.gif)
@@ -29,6 +29,33 @@
 </div>
 
 Spectacular is a high-performance scientific visualization execution engine designed to handle massive datasets with intelligent data reduction and blazing-fast D3.js rendering. Rather than making visualization decisions itself, Spectacular receives sophisticated directions from external metacognitive engines like **Autobahn** and focuses purely on optimal execution.
+
+## 🧠 **NEW: Bayesian Evidence Network Demo**
+
+**Want to see advanced AI reasoning in action?** We've created a simplified CLI demo that showcases our Bayesian Evidence Network concepts:
+
+```bash
+cd demos
+pip install -r requirements.txt
+# Set your OpenAI API key in demo_config.yaml  
+python simple_bayesian_demo.py
+```
+
+**✨ What makes it special:**
+- 🔍 **Complete transparency** - See every reasoning step
+- 🧠 **Bayesian inference** - Watch confidence evolve with evidence
+- 🔄 **Recursive processing** - System gathers more evidence when uncertain
+- 🎨 **Visual validation** - ASCII art proves understanding
+- 📊 **Detailed reports** - Full markdown analysis of reasoning
+
+**Try different examples:**
+- Physics concepts with visual proofs
+- Quantum mechanics explanations  
+- Neural network learning processes
+
+See [`demos/USAGE.md`](demos/USAGE.md) for complete instructions.
+
+---
 
 ## 🎯 Key Features
 

@@ -1,0 +1,48 @@
+# Quantum Physics Example - Complex Topic Demo
+
+openai:
+  api_key: "your-openai-api-key-here"
+  model: "gpt-3.5-turbo"
+  temperature: 0.6  # Lower temperature for complex physics
+  max_tokens: 1500
+
+query:
+  prompt: "Explain quantum entanglement and why Einstein called it 'spooky action at a distance'"
+  context:
+    - "Advanced physics topic requiring careful explanation"
+    - "User has some physics background but new to quantum mechanics"
+    - "Historical context with Einstein's perspective important"
+    - "Needs clear examples to make abstract concepts concrete"
+
+bayesian_network:
+  convergence_threshold: 0.85  # Higher threshold for complex topics
+  uncertainty_threshold: 0.25  # Lower uncertainty tolerance
+  max_recursive_depth: 4       # Allow more recursion for complex topics
+  
+  nodes:
+    - id: "query_analysis"
+      type: "input_processor"
+      description: "Analyzes quantum physics query complexity and requirements"
+    
+    - id: "knowledge_retrieval"
+      type: "knowledge_processor"
+      description: "Retrieves quantum mechanics concepts and historical context"
+    
+    - id: "reasoning_validation"
+      type: "validator"
+      description: "Validates quantum physics explanations and analogies"
+    
+    - id: "visual_generation"
+      type: "visualizer"
+      description: "Creates visualizations for quantum phenomena"
+    
+    - id: "final_synthesis"
+      type: "synthesizer"
+      description: "Synthesizes quantum concepts with historical perspective"
+
+output:
+  filename: "quantum_entanglement_explained.md"
+  include_ascii_art: true
+  include_step_timings: true
+  include_confidence_graphs: true
+  detail_level: "verbose"

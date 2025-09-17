@@ -1,0 +1,47 @@
+# Physics Example - Newton's Laws Demo
+
+openai:
+  api_key: "your-openai-api-key-here"
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1200
+
+query:
+  prompt: "Explain Newton's second law F=ma with real-world examples"
+  context:
+    - "Educational context - student learning physics"
+    - "Needs both conceptual understanding and practical examples"
+    - "Visual aids would be helpful"
+
+bayesian_network:
+  convergence_threshold: 0.8
+  uncertainty_threshold: 0.3
+  max_recursive_depth: 3
+  
+  nodes:
+    - id: "query_analysis"
+      type: "input_processor"
+      description: "Analyzes the user query for intent and complexity"
+    
+    - id: "knowledge_retrieval"
+      type: "knowledge_processor" 
+      description: "Retrieves relevant physics knowledge using LLM"
+    
+    - id: "reasoning_validation"
+      type: "validator"
+      description: "Validates physics concepts and mathematical relationships"
+    
+    - id: "visual_generation"
+      type: "visualizer"
+      description: "Creates visual representations of physics concepts"
+    
+    - id: "final_synthesis"
+      type: "synthesizer"
+      description: "Combines theory, examples, and visuals into coherent explanation"
+
+output:
+  filename: "newton_second_law_analysis.md"
+  include_ascii_art: true
+  include_step_timings: true
+  include_confidence_graphs: true
+  detail_level: "verbose"

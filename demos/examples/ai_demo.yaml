@@ -1,0 +1,48 @@
+# AI/Machine Learning Example - Meta-Learning Demo
+
+openai:
+  api_key: "your-openai-api-key-here"
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1300
+
+query:
+  prompt: "How do neural networks actually learn? What happens during backpropagation?"
+  context:
+    - "Technical explanation but make it accessible"
+    - "User has programming background but new to ML"
+    - "Wants to understand both the math and the intuition"
+    - "Practical examples would help"
+
+bayesian_network:
+  convergence_threshold: 0.8
+  uncertainty_threshold: 0.3
+  max_recursive_depth: 3
+  
+  nodes:
+    - id: "query_analysis"
+      type: "input_processor"
+      description: "Analyzes ML/AI query for technical depth needed"
+    
+    - id: "knowledge_retrieval"
+      type: "knowledge_processor"
+      description: "Retrieves neural network concepts and learning algorithms"
+    
+    - id: "reasoning_validation"
+      type: "validator"
+      description: "Validates mathematical concepts and algorithmic explanations"
+    
+    - id: "visual_generation"
+      type: "visualizer"
+      description: "Creates network diagrams and learning process visuals"
+    
+    - id: "final_synthesis"
+      type: "synthesizer"
+      description: "Combines mathematical theory with intuitive explanations"
+
+output:
+  filename: "neural_network_learning_explained.md"
+  include_ascii_art: true
+  include_step_timings: true
+  include_confidence_graphs: true
+  detail_level: "verbose"
