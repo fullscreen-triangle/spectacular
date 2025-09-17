@@ -1,0 +1,66 @@
+# Spectacular Simple Demo Configuration
+
+# OpenAI API Configuration
+openai:
+  api_key: "your-openai-api-key-here"  # Set your OpenAI API key
+  model: "gpt-3.5-turbo"  # Free tier model
+  temperature: 0.7
+  max_tokens: 1000
+
+# Query and Context
+query:
+  prompt: "How does Newton's second law F=ma work?"
+  context:
+    - "User is asking about physics concepts"
+    - "This appears to be for educational purposes"
+    - "User wants both explanation and visual understanding"
+
+# Bayesian Network Configuration
+bayesian_network:
+  # Confidence thresholds for decision making
+  convergence_threshold: 0.8
+  uncertainty_threshold: 0.3
+  max_recursive_depth: 3
+  
+  # Nodes in the simplified network
+  nodes:
+    - id: "query_analysis"
+      type: "input_processor"
+      description: "Analyzes the user query for intent and complexity"
+    
+    - id: "knowledge_retrieval"
+      type: "knowledge_processor"
+      description: "Retrieves relevant information using LLM"
+    
+    - id: "reasoning_validation"
+      type: "validator"
+      description: "Validates the reasoning through coherence testing"
+    
+    - id: "visual_generation"
+      type: "visualizer"
+      description: "Generates visual representations and plots"
+    
+    - id: "final_synthesis"
+      type: "synthesizer"
+      description: "Combines all evidence into final response"
+
+# Output Configuration
+output:
+  filename: "spectacular_reasoning_trace.md"
+  include_ascii_art: true
+  include_step_timings: true
+  include_confidence_graphs: true
+  detail_level: "verbose"  # verbose, normal, minimal
+
+# Demo Examples (uncomment to try different queries)
+# query:
+#   prompt: "Explain quantum entanglement"
+#   context: ["Complex physics topic", "Requires visual aids", "Educational context"]
+
+# query:
+#   prompt: "What is the relationship between energy and mass?"
+#   context: ["Einstein's equation", "Conceptual understanding needed", "Physics education"]
+
+# query:
+#   prompt: "How do neural networks learn?"
+#   context: ["Machine learning topic", "Technical but accessible explanation needed"]

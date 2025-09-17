@@ -1,0 +1,10 @@
+# Spectacular Simple Bayesian Demo Requirements
+
+# Core dependencies
+openai>=0.28.0
+pyyaml>=6.0
+asyncio
+pathlib
+
+# Optional: For better terminal output
+colorama>=0.4.6
