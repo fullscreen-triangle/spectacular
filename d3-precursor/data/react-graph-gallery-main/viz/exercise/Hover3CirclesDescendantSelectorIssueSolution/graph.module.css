@@ -1,9 +1,0 @@
-.circle {
-  opacity: 1;
-}
-.container:hover .circle {
-  opacity: 0.1;
-}
-.container .circle:hover {
-  opacity: 1;
-}
