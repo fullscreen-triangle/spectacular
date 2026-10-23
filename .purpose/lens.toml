@@ -1,0 +1,60 @@
+# The term map is your instrument.
+#
+# The calculus is correct for ANY choice made here (thm:tau-agnostic), so
+# nothing below can make a determination unsound. What it decides is which
+# distinctions the graph can see — and therefore whether the graph can tell
+# your modules apart at all.
+#
+# Edit, then run `purpose ckg lens` to see what the choice did to the
+# structure, and `purpose ckg build` to induce the graph from it.
+#
+# There is deliberately no score to raise. A lens under which every module
+# draws identical distinctions induces among the highest floors while
+# discriminating worst. Read component sizes and term spread instead.
+
+[lens]
+granularity = "file"   # file | dir — one module per source file, or per directory
+floor = 1            # β; every contact carries at least this
+
+[include]
+# The rebuild (2026-10-22): Rust crossfilter, its WASM bindings, the TS views and engine.
+paths = ["crates/**", "packages/viz/src/**"]
+# Re-tune once the code grows; the 2025 lens measurements no longer apply.
+kinds = ["struct", "enum", "trait", "fn", "func", "type", "class"]
+
+[terms]
+min_len = 3                  # shortest prose token that counts as a distinction
+split_camel_case = false      # also emit the pieces of parseRequest, not only the whole
+prose_kinds = ["heading", "section"]  # names here are phrases to split, not identifiers
+
+# Tokens too common to distinguish anything. These apply to prose only: a
+# `fn over` still defines `over`, because that is a real distinction.
+# Add to this list from the TERM SPREAD section of `purpose ckg lens` — the
+# terms at the top of it are the ones putting everything in contact.
+stopwords = [
+  "the", "and", "not", "for", "with", "from", "that", "this",
+  "what", "when", "where", "which", "how", "why", "who", "are",
+  "was", "were", "has", "have", "had", "can", "will", "its",
+  "into", "out", "over", "than", "then", "there", "does", "did",
+  "you", "your", "our", "all", "any", "but", "use", "using",
+  "used", "via", "per", "about", "also",
+]
+
+# Rename a term wherever it appears, so two spellings become one distinction.
+[terms.alias]
+# "ckg" = "contact-knowledge-graph"
+
+# What a distinction is worth when telling two modules apart. Patterns match on
+# the KIND that contributed the term, first match wins, default 1.0.
+# A shared term is worth min(what each module gives it).
+[terms.weight]
+# "trait:*" = 3.0        # anything a trait declares weighs triple
+# "heading:*" = 0.5      # prose weighs half
+# "fn:parse" = 2.0       # one exact term from one kind
+
+[edges]
+# sum     — Σ min(weights) over shared terms; at unit weights, the shared count
+# count   — the shared count, ignoring weights entirely
+# jaccard — weighted Jaccard in (0,1]; needs a floor well below 1 or every
+#           contact clamps to β and the graph goes flat
+weight = "sum"
