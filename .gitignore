@@ -5,6 +5,9 @@ yarn-debug.log
 yarn-error.log
 .pnpm-debug.log
 .npm/
+.agw.json
+.claude
+CLAUDE.md 
 
 # Python
 __pycache__/
@@ -74,4 +77,21 @@ out/
 
 # Local env files
 .env*.local
-.env 
+.env
+
+# Claude Code local settings (holds a gateway credential)
+.claude/settings.local.json
+
+# Toolbelt caches (purpose / spraypaint / wind tunnel / srn-fleet / okgg).
+# The lens and scene list are reviewable decisions, so they stay committed.
+.purpose/*
+!.purpose/lens.toml
+.spraypaint/*
+!.spraypaint/scenes.toml
+.wt/
+.srn/
+.okgg/
+
+# Rust and bundler output
+target/
+dist/
