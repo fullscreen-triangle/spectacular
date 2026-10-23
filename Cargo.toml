@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/chigutiro"]
+members = ["crates/chigutiro", "crates/chigutiro-wasm"]
 
 [workspace.package]
 version = "0.2.0"
