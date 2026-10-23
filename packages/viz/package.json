@@ -1,0 +1,31 @@
+{
+  "name": "@spectacular/viz",
+  "version": "0.2.0",
+  "description": "Linked 2D/3D scientific views over a WASM crossfilter, driven by a declarative spec",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vite build && node test/e2e.mjs 1000000"
+  },
+  "dependencies": {
+    "chigutiro-wasm": "*",
+    "d3": "^7.9.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/node": "^24.19.2",
+    "@types/three": "^0.186.0",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

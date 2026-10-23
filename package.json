@@ -1,0 +1,15 @@
+{
+  "name": "spectacular",
+  "private": true,
+  "workspaces": [
+    "packages/chigutiro-wasm",
+    "packages/viz"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build crates/chigutiro-wasm --release --target web --out-dir ../../packages/chigutiro-wasm --out-name chigutiro",
+    "test:wasm": "node crates/chigutiro-wasm/tests/node.mjs 1000000",
+    "dev": "npm run dev -w @spectacular/viz",
+    "build": "npm run build:wasm && npm run build -w @spectacular/viz",
+    "test": "cargo test -p chigutiro && npm run test:wasm && npm test -w @spectacular/viz"
+  }
+}

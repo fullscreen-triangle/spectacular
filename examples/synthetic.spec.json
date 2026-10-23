@@ -1,0 +1,23 @@
+{
+  "version": "spectacular/v0",
+  "title": "Synthetic collision events",
+  "description": "Three particle species with correlated momenta and a resonance in the mass spectrum.",
+  "data": { "columns": "external" },
+  "fields": {
+    "px": { "type": "quantitative", "title": "p_x (GeV)" },
+    "py": { "type": "quantitative", "title": "p_y (GeV)" },
+    "pz": { "type": "quantitative", "title": "p_z (GeV)" },
+    "mass": { "type": "quantitative", "title": "invariant mass (GeV)" },
+    "energy": { "type": "quantitative", "title": "energy (GeV)" },
+    "species": { "type": "nominal" }
+  },
+  "layout": { "columns": 3 },
+  "views": [
+    { "id": "momentum", "type": "scatter", "title": "Transverse momentum", "x": "px", "y": "py", "color": "species", "height": 320 },
+    { "id": "density", "type": "density", "title": "Transverse momentum density", "x": "px", "y": "py", "bins": [192, 192], "height": 320 },
+    { "id": "space", "type": "scatter3d", "title": "Momentum space", "x": "px", "y": "py", "z": "pz", "color": "species", "height": 362 },
+    { "id": "mass", "type": "histogram", "title": "Mass spectrum", "field": "mass", "bins": 120, "span": 2 },
+    { "id": "species", "type": "bars", "title": "Species", "field": "species" },
+    { "id": "energy", "type": "histogram", "title": "Energy", "field": "energy", "bins": 80, "span": 3 }
+  ]
+}
