@@ -18,11 +18,30 @@ export interface MountOptions {
   worker?: Worker;
 }
 
+/** One active brush, in data terms: a closed range on a quantitative field, or categories. */
+export interface Filter {
+  view: string;
+  field: string;
+  range?: [number, number];
+  values?: string[];
+}
+
+/** What is selected, in terms another program can apply to its own copy of the data. */
+export interface Selection {
+  selected: number;
+  rows: number;
+  filters: Filter[];
+}
+
 export interface Handle {
   readonly table: Table;
   readonly engine: Engine;
   /** Fires after every crossfilter update. */
   onUpdate(listener: (state: EngineState) => void): () => void;
+  /** The brushes behind the current state. A row is selected when it passes every filter. */
+  selection(): Selection;
+  /** Indices (0-based, in data order) of the selected rows. */
+  selectedRows(): Uint32Array;
   destroy(): void;
 }
 
@@ -137,10 +156,32 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     report(s);
   });
 
+  const owners = new Map<number, { view: string; field: string }>();
+  allocations.forEach((a, i) => {
+    for (const [field, d] of Object.entries(a.dims)) owners.set(d, { view: spec.views[i]!.id, field });
+  });
+  const selection = (): Selection => ({
+    selected: engine.state.selectedCount,
+    rows: engine.state.rows,
+    filters: [...engine.filters].sort(([a], [b]) => a - b).map(([d, op]): Filter => {
+      const owner = owners.get(d)!;
+      if ("range" in op) return { ...owner, range: [Math.min(...op.range), Math.max(...op.range)] };
+      const c = table.columns.get(owner.field)!;
+      return { ...owner, values: "codes" in op && c.type === "nominal" ? op.codes.map((k) => c.labels[k]!) : [] };
+    }),
+  });
+
   return {
     table,
     engine,
     onUpdate: (l) => engine.on(l),
+    selection,
+    selectedRows() {
+      const m = engine.state.mask;
+      const out = new Uint32Array(engine.state.selectedCount);
+      for (let r = 0, k = 0; r < m.length; r++) if (m[r]) out[k++] = r;
+      return out;
+    },
     destroy() {
       engine.dispose();
       panels.forEach((p) => p.destroy());

@@ -24,8 +24,11 @@ export class Engine {
   private seq = 0;
   private inFlight = false;
   private pending = new Map<number, FilterOp>();
+  private sent: FilterOp[] = [];
   private listeners = new Set<Listener>();
   readonly state: EngineState;
+  /** The filter on each dimension that the current `state` reflects (cleared ones absent). */
+  readonly filters = new Map<number, FilterOp>();
 
   private constructor(private worker: Worker, rows: number, ready: Extract<Response, { type: "ready" }>) {
     this.state = {
@@ -72,6 +75,7 @@ export class Engine {
     if (this.inFlight || this.pending.size === 0) return;
     const ops = [...this.pending.values()];
     this.pending.clear();
+    this.sent = ops;
     this.inFlight = true;
     this.worker.postMessage({ type: "filter", seq: ++this.seq, ops } satisfies Request);
   }
@@ -90,6 +94,7 @@ export class Engine {
     s.counts = msg.counts;
     s.selectedCount = msg.selectedCount;
     s.elapsed = msg.elapsed;
+    for (const op of this.sent) "clear" in op ? this.filters.delete(op.dim) : this.filters.set(op.dim, op);
     this.inFlight = false;
     for (const l of this.listeners) l(s);
     this.flush();
