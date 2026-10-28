@@ -1,4 +1,4 @@
-import { mount, type Spec } from "../src";
+import { mount, type Handle, type Spec } from "../src";
 import spec from "../../../examples/synthetic.spec.json";
 
 const SPECIES = ["electron", "muon", "pion"];
@@ -38,6 +38,27 @@ const settle = (state: "ready" | "error", message = "") => {
   }
 };
 document.body.dataset.state = "loading";
+// ?figure: a static figure for `spectacular render`, without the status lines.
+if (params.has("figure")) document.body.classList.add("figure");
+
+/**
+ * Pages served by `spectacular serve` (?channel) post each settled selection back to it,
+ * which prints them for the program that started it, and reload when the spec or its
+ * data file changes on disk.
+ */
+function connect(h: Handle, base: URL) {
+  const indices = params.has("indices");
+  new EventSource(new URL("__spectacular/events", base)).addEventListener("reload", () => location.reload());
+  let timer = 0;
+  h.onUpdate(() => {
+    clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      const body = indices ? { ...h.selection(), indices: Array.from(h.selectedRows()) } : h.selection();
+      fetch(new URL("__spectacular/selection", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+        .catch(() => {}); // the program may have stopped serving; the page still works
+    }, 150);
+  });
+}
 
 const specUrl = params.get("spec");
 if (specUrl) {
@@ -47,11 +68,12 @@ if (specUrl) {
   fetch(base)
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`fetching ${base}: ${r.status} ${r.statusText}`))))
     .then((s: Spec) => {
-      if (s?.data && "url" in s.data && typeof s.data.url === "string") s = { ...s, data: { url: new URL(s.data.url, base).href } };
+      if (s?.data && "url" in s.data && typeof s.data.url === "string") s = { ...s, data: { ...s.data, url: new URL(s.data.url, base).href } };
       const t0 = performance.now();
       return mount(app, s).then((h) => {
         note.textContent = `${base.pathname} · ${h.table.rows.toLocaleString()} rows · loaded and indexed in ${(performance.now() - t0).toFixed(0)} ms`;
         expose(h);
+        if (params.has("channel")) connect(h, base);
         settle("ready");
       });
     })

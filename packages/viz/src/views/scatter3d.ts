@@ -44,7 +44,11 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   title.textContent = view.title ?? view.id;
   const legend = document.createElement("div");
   legend.className = "sv-legend";
-  legend.textContent = `x: ${ctx.titleOf(view.x)} · y: ${ctx.titleOf(view.y)} · z: ${ctx.titleOf(view.z)} · drag to orbit, scroll to zoom`;
+  legend.textContent = `x: ${ctx.titleOf(view.x)} · y: ${ctx.titleOf(view.y)} · z: ${ctx.titleOf(view.z)}`;
+  const hint = document.createElement("span");
+  hint.className = "sv-hint";
+  hint.textContent = " · drag to orbit, scroll to zoom";
+  legend.append(hint);
   root.append(title);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
