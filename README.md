@@ -20,7 +20,7 @@ A program in any language drives one command and reads JSON lines and exit codes
 
 ```bash
 spectacular validate run.spec.json --json          # problems by JSON path; row count and field types
-spectacular render run.spec.json -o fig.pdf        # PNG or PDF, sized by output.figure or flags
+spectacular render run.spec.json -o fig.svg        # SVG, PDF or PNG, sized by output.figure or flags
 spectacular serve run.spec.json --json --indices   # linked views on 127.0.0.1; prints each selection
 spectacular schema > spectacular.schema.json       # JSON Schema for specs
 ```
@@ -72,6 +72,7 @@ field; "species" is nominal`.
 import { mount } from "@spectacular/viz";
 const handle = await mount(element, spec, { columns });  // columns only for "external" data
 handle.onUpdate((s) => console.log(s.selectedCount, handle.selection().filters));
+const svg = handle.toSVG();      // the views as they are now, as a standalone SVG document
 handle.destroy();
 ```
 
@@ -118,12 +119,12 @@ or the whole mask when that is smaller, and the GPU gets one byte per point per 
 Working: the crossfilter and its WebAssembly (WASM) bindings, the spec, validator and
 JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are five view types:
 WebGL2 scatter, three.js 3D scatter, density grid, histogram and bars. The `spectacular`
-command validates specs, renders PNG and PDF figures at physical size, and serves a
+command validates specs, renders SVG, PDF and PNG figures at physical size, and serves a
 viewer that reports selections. The
 demo and end-to-end browser tests run against the production build.
 
 Next:
-- SVG figures, and rendering a brushed state.
+- Rendering a brushed state from the command line.
 - Apache Arrow input (the inter-process communication (IPC) file format).
 - Pan and zoom.
 - Lasso selection.

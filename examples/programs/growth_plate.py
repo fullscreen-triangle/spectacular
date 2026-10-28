@@ -1,7 +1,7 @@
 """A lab program driving spectacular, with the Python standard library only.
 
 It simulates optical-density readings of a 96-well growth plate, writes them as CSV next
-to a view spec, validates the spec, renders a figure, and with --serve opens the linked
+to a view spec, validates the spec, renders figures, and with --serve opens the linked
 views and prints which wells a person brushes:
 
     python examples/programs/growth_plate.py OUT_DIR [--serve]
@@ -85,7 +85,7 @@ def main():
     print(f"valid: {result['rows']} rows")
 
     # The size comes from output.figure; flags would override it.
-    for name in ("growth.pdf", "growth.png"):
+    for name in ("growth.svg", "growth.pdf", "growth.png"):
         code, [result] = spectacular("render", str(spec_file), "-o", str(out / name))
         if code != 0:
             sys.exit(f"render failed ({code}): {result['error']}")

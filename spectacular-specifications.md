@@ -29,7 +29,7 @@ with problems that each name the exact JSON path at fault.
 
 Use it when someone needs to **explore** a table: find which rows explain a peak,
 see how a cut on one variable changes the others, look at a 3D structure, or compare
-categories. It also draws the same views to a PNG or PDF file for a paper or a report
+categories. It also draws the same views to an SVG, PDF or PNG file for a paper or a report
 (§8.3). Do not use it for data that is not one flat table.
 
 ## 2. The ways in
@@ -148,7 +148,7 @@ data.
 | `fields` | object | no | Field types and axis titles, §4.3. |
 | `views` | array | **yes** | At least one view, §4.5. |
 | `layout` | object | no | `{ "columns": n }`, n an integer from 1 to 12. The default is the smaller of 3 and the number of views. |
-| `output` | object | no | `{ "interactive": bool, "figure": { "format": "png" \| "pdf", "width": n, "unit"?: "mm" \| "in" \| "px", "dpi"?: n } }`. `figure` sets the default size for `spectacular render` (§8.3). `interactive` is accepted and not yet used. |
+| `output` | object | no | `{ "interactive": bool, "figure": { "format": "svg" \| "pdf" \| "png", "width": n, "unit"?: "mm" \| "in" \| "px", "dpi"?: n } }`. `figure` sets the default size for `spectacular render` (§8.3). `interactive` is accepted and not yet used. |
 
 Any other property is an error.
 
@@ -314,6 +314,8 @@ handle.destroy();
     same object `spectacular serve` prints (§8.4);
   - `selectedRows()`: the selected row indices (0-based, in data order) as a
     `Uint32Array`;
+  - `toSVG()`: the views as they are now, including any brushes, as a standalone SVG
+    document (a string), built the same way as `render`'s SVG (§8.3);
   - `destroy()`.
 - The package is not published to npm. Inside this repository it is the npm workspace
   in `packages/viz` (package name @spectacular/viz), and its entry point is TypeScript
@@ -334,7 +336,7 @@ and prints the wells a person brushes.
 
 ```
 spectacular validate <spec.json|-> [...]          check specs and their local data
-spectacular render <spec.json|-> -o <out.png|out.pdf> [--width N] [--unit mm|in|px] [--dpi N]
+spectacular render <spec.json|-> -o <out.svg|.pdf|.png> [--width N] [--unit mm|in|px] [--dpi N]
 spectacular serve <spec.json> [--port N] [--open] [--indices] [--no-watch]
 spectacular schema                                print the JSON Schema for specs
 ```
@@ -374,15 +376,23 @@ the data and the 32-dimension limit.
 ### 8.3 `render`: figures to files
 
 ```bash
+spectacular render growth.spec.json -o growth.svg
 spectacular render growth.spec.json -o growth.pdf
 spectacular render growth.spec.json -o growth.png --width 900 --unit px --dpi 192
 ```
 
-- The output format comes from the extension: `.png` or `.pdf`.
+- The output format comes from the extension: `.svg`, `.pdf` or `.png`.
 - **Size:** each flag overrides one value of the spec's `output.figure`. Without either,
   the figure is 960 CSS px wide. Units: `mm` and `in` are physical; 1 CSS px is 1/96 in.
   `dpi` defaults to 300 for `mm` and `in` and to 192 (2×) for `px`. The height follows
   from the views' heights.
+- **SVG:** a standalone document. Its `width` and `height` carry the physical unit
+  (`180mm`), so it keeps its size when placed in a paper, and the `viewBox` is in CSS
+  px. Titles and labels are `<text>`; axes, histograms, bars and panel frames are
+  shapes with their colours written in, so the file looks the same in a browser,
+  Inkscape or Illustrator. A 2D scatter of up to 50,000 rows is one `<circle>` per point.
+  Larger scatters, density grids and 3D views are embedded PNG images at the chosen
+  dpi (density keeps square bins: `image-rendering: pixelated`).
 - **PDF:** a single page exactly the figure's size. Text, axes, histograms and bars stay
   vector. Point and density views are embedded as images at the chosen dpi.
 - What is drawn is the unfiltered state, with the spec's title and without the
@@ -452,7 +462,6 @@ Chromium against 12–18 ms in Node. For timings, run `npm run test:wasm` or
 
 Do not write specs that rely on these; the validator will reject most of them:
 
-- **SVG output.** `render` writes PNG and PDF; use PDF for vector text and axes.
 - **Rendering a brushed state.** `render` draws the unfiltered views; a selection cannot
   be set in the spec.
 - **Arrow or Parquet input.** Use CSV, TSV, JSON rows, inline values or external
