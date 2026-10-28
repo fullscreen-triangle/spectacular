@@ -1,6 +1,6 @@
 import { dsvFormat } from "d3";
-import type { FieldType, Spec } from "./spec";
-import { fieldsUsed } from "./spec";
+import type { FieldType, Spec } from "./spec.ts";
+import { fieldsUsed } from "./spec.ts";
 
 export type Column =
   | { type: "quantitative"; values: Float64Array; extent: [number, number] }

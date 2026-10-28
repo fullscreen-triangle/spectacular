@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "build:wasm": "wasm-pack build crates/chigutiro-wasm --release --target web --out-dir ../../packages/chigutiro-wasm --out-name chigutiro",
+    "validate": "node scripts/validate.mjs",
     "test:wasm": "node crates/chigutiro-wasm/tests/node.mjs 1000000",
     "dev": "npm run dev -w @spectacular/viz",
     "build": "npm run build:wasm && npm run build -w @spectacular/viz",
