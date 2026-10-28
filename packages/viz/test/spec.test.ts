@@ -39,6 +39,16 @@ describe("validate", () => {
     expect(problems[0]!.message).toMatch(/needs a quantitative field; "species" is nominal/);
   });
 
+  it("reports unknown properties, suggesting the near miss", () => {
+    const spec = {
+      data: { values: [] }, colums: 2, layout: { colums: 2 },
+      views: [{ id: "s", type: "scatter", x: "a", y: "b", colour: "k" }, { id: "d", type: "density", x: "a", y: "b", brush: "xy" }],
+    };
+    const problems = validate(spec);
+    expect(problems.map((p) => p.path)).toEqual(["/colums", "/views/0/colour", "/views/1/brush", "/layout/colums"]);
+    expect(problems[1]!.message).toBe('unknown property "colour"; did you mean "color"?');
+  });
+
   it("rejects non-objects without throwing", () => {
     expect(paths(null)).toEqual([""]);
     expect(paths({ data: { values: [] }, views: [] })).toEqual(["/views"]);

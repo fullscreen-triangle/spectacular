@@ -127,12 +127,61 @@ const BRUSHES: Record<ViewType, string[]> = {
   scatter3d: [],
 };
 
+const COMMON_VIEW_KEYS = ["id", "type", "title", "height", "span"];
+const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
+  scatter: ["brush", "pointSize"],
+  histogram: ["brush", "bins"],
+  bars: ["brush"],
+  density: ["bins"],
+  scatter3d: ["pointSize"],
+};
+const TOP_KEYS = ["$schema", "version", "title", "description", "data", "fields", "views", "layout", "output"];
+
+function distance(a: string, b: string): number {
+  const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = d[0]!;
+    d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = d[j]!;
+      d[j] = Math.min(d[j]! + 1, d[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+  }
+  return d[b.length]!;
+}
+
+/** Unknown properties are errors: a typo silently ignored would draw a different figure. */
+function unknownKeys(obj: Record<string, unknown>, allowed: string[], at: string, bad: (path: string, message: string) => void) {
+  for (const key of Object.keys(obj)) {
+    if (allowed.includes(key)) continue;
+    const near = allowed.filter((k) => distance(k.toLowerCase(), key.toLowerCase()) <= 2);
+    bad(`${at}/${key}`, `unknown property "${key}"` + (near.length ? `; did you mean "${near[0]}"?` : `; allowed: ${allowed.join(", ")}`));
+  }
+}
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
+
+export const MAX_DIMENSIONS = 32;
+
+/**
+ * Crossfilter dimensions a view needs: one per brushed field, plus the fields a
+ * histogram, bars or density view bins (those exist even without a brush).
+ */
+export function dimensionsNeeded(view: View): number {
+  switch (view.type) {
+    case "scatter": return (view.brush ?? "xy") === "xy" ? 2 : 0;
+    case "histogram": case "bars": return 1;
+    case "density": return 2;
+    case "scatter3d": return 0;
+  }
+}
 
 /** Every field a view reads, with the type it needs (undefined: any type). */
 export function fieldsUsed(view: View): [string, FieldType | undefined][] {
   const needs = NEEDS[view.type];
+  if (!needs) return []; // an unknown type is reported by validate; it reads no fields
   return Object.keys(needs)
     .map((k) => [(view as unknown as Record<string, unknown>)[k], needs[k]] as const)
     .filter((e): e is readonly [string, FieldType | undefined] => typeof e[0] === "string")
@@ -148,6 +197,7 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
   const bad = (path: string, message: string) => problems.push({ path, message });
   if (!isObject(input)) return [{ path: "", message: "a spec must be a JSON object" }];
   const spec = input;
+  unknownKeys(spec, TOP_KEYS, "", bad);
 
   if (spec.version !== undefined && spec.version !== SPEC_VERSION)
     bad("/version", `unsupported version ${JSON.stringify(spec.version)}; this build reads "${SPEC_VERSION}"`);
@@ -169,6 +219,7 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     else
       for (const [name, def] of Object.entries(spec.fields)) {
         if (!isObject(def)) { bad(`/fields/${name}`, "must be an object"); continue; }
+        unknownKeys(def, ["type", "title"], `/fields/${name}`, bad);
         if (def.type !== undefined) {
           if (def.type !== "quantitative" && def.type !== "nominal")
             bad(`/fields/${name}/type`, 'must be "quantitative" or "nominal"');
@@ -192,6 +243,7 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     if (!(type in VIEW_FIELDS))
       return bad(`${at}/type`, `unknown view type ${JSON.stringify(v.type)}; one of ${Object.keys(VIEW_FIELDS).join(", ")}`);
     const { required, optional } = VIEW_FIELDS[type];
+    unknownKeys(v, [...COMMON_VIEW_KEYS, ...required, ...optional, ...EXTRA_VIEW_KEYS[type]], at, bad);
     for (const key of required)
       if (typeof v[key] !== "string") bad(`${at}/${key}`, `required: the name of a field`);
     for (const key of [...required, ...optional]) {
@@ -202,8 +254,9 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
       if (types && !(field in types)) bad(`${at}/${key}`, `no field "${field}" in the data`);
       else if (need && have && need !== have) bad(`${at}/${key}`, `${type}.${key} needs a ${need} field; "${field}" is ${have}`);
     }
-    if (v.brush !== undefined && !BRUSHES[type].includes(v.brush as string))
-      bad(`${at}/brush`, BRUSHES[type].length ? `one of ${BRUSHES[type].join(", ")}` : `${type} views do not brush`);
+    // Views without a brush already reported "brush" as an unknown property.
+    if (v.brush !== undefined && BRUSHES[type].length && !BRUSHES[type].includes(v.brush as string))
+      bad(`${at}/brush`, `one of ${BRUSHES[type].join(", ")}`);
     if (v.bins !== undefined) {
       const ok = type === "density"
         ? Array.isArray(v.bins) && v.bins.length === 2 && v.bins.every((b) => Number.isInteger(b) && b > 0 && b <= 1024)
@@ -214,10 +267,28 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
       if (v[key] !== undefined && !(typeof v[key] === "number" && (v[key] as number) > 0)) bad(`${at}/${key}`, "must be a positive number");
   });
 
+  if (spec.layout !== undefined) {
+    if (!isObject(spec.layout)) bad("/layout", "must be an object");
+    else {
+      unknownKeys(spec.layout, ["columns"], "/layout", bad);
+      const c = spec.layout.columns;
+      if (c !== undefined && !(Number.isInteger(c) && (c as number) >= 1 && (c as number) <= 12)) bad("/layout/columns", "an integer in 1..12");
+    }
+  }
+  if (spec.output !== undefined) {
+    if (!isObject(spec.output)) bad("/output", "must be an object");
+    else unknownKeys(spec.output, ["interactive", "figure"], "/output", bad);
+  }
+  const views = spec.views.filter((v: unknown): v is View => isObject(v) && (v.type as string) in VIEW_FIELDS);
+  const dims = views.reduce((n: number, v: View) => n + dimensionsNeeded(v), 0);
+  if (dims > MAX_DIMENSIONS)
+    bad("/views", `these views need ${dims} crossfilter dimensions; the limit is ${MAX_DIMENSIONS} (scatter with brush 2, density 2, histogram 1, bars 1, scatter3d 0)`);
+
   const figure = isObject(spec.output) ? spec.output.figure : undefined;
   if (figure !== undefined) {
     if (!isObject(figure)) bad("/output/figure", "must be an object");
     else {
+      unknownKeys(figure, ["format", "width", "unit", "dpi"], "/output/figure", bad);
       if (!["svg", "png", "pdf"].includes(figure.format as string)) bad("/output/figure/format", "one of svg, png, pdf");
       if (!(typeof figure.width === "number" && figure.width > 0)) bad("/output/figure/width", "required: a positive number");
     }
@@ -226,7 +297,10 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
 }
 
 export class SpecError extends Error {
-  constructor(readonly problems: Problem[]) {
+  // A plain field, not a parameter property, so Node can run this file by stripping types.
+  readonly problems: Problem[];
+  constructor(problems: Problem[]) {
     super("invalid spec:\n" + problems.map((p) => `  ${p.path || "/"}: ${p.message}`).join("\n"));
+    this.problems = problems;
   }
 }
