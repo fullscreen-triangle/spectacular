@@ -95,3 +95,6 @@ out/
 # Rust and bundler output
 target/
 dist/
+
+# Private specs and data dropped in by other repos (served at /local/...)
+examples/local/
