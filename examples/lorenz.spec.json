@@ -1,0 +1,19 @@
+{
+  "version": "spectacular/v0",
+  "title": "Lorenz attractor",
+  "description": "A Lorenz trajectory (sigma 10, rho 28, beta 8/3). Brush time or speed to see where on the attractor those states lie.",
+  "data": { "url": "lorenz.csv" },
+  "fields": {
+    "t": { "type": "quantitative", "title": "time" },
+    "speed": { "type": "quantitative", "title": "|dx/dt|" },
+    "lobe": { "type": "nominal" }
+  },
+  "layout": { "columns": 2 },
+  "views": [
+    { "id": "attractor", "type": "scatter3d", "title": "Phase space", "x": "x", "y": "y", "z": "z", "color": "speed", "height": 380 },
+    { "id": "xz", "type": "scatter", "title": "x–z projection", "x": "x", "y": "z", "color": "lobe", "height": 380 },
+    { "id": "time", "type": "histogram", "title": "Time", "field": "t", "bins": 150, "span": 2 },
+    { "id": "speed", "type": "histogram", "title": "Speed", "field": "speed", "bins": 80 },
+    { "id": "lobe", "type": "bars", "title": "Lobe", "field": "lobe" }
+  ]
+}
