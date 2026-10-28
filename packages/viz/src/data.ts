@@ -115,9 +115,21 @@ export async function loadTable(
   const res = await fetcher(data.url);
   if (!res.ok) throw new Error(`fetching ${data.url}: ${res.status} ${res.statusText}`);
   const text = await res.text();
-  if (/\.json(\?|$)/i.test(data.url)) return fromRows(spec, JSON.parse(text));
-  const sep = /\.tsv(\?|$)/i.test(data.url) ? "\t" : ",";
-  return fromRows(spec, dsvFormat(sep).parse(text) as unknown as Record<string, unknown>[]);
+  const format = data.format ?? (/\.json(ld)?(\?|#|$)/i.test(data.url) ? "json" : /\.tsv(\?|#|$)/i.test(data.url) ? "tsv" : "csv");
+  if (format === "json") return fromRows(spec, rowsAt(JSON.parse(text), data.pointer ?? ""));
+  return fromRows(spec, dsvFormat(format === "tsv" ? "\t" : ",").parse(text) as unknown as Record<string, unknown>[]);
+}
+
+/** Follows an RFC 6901 JSON Pointer to the array of row objects inside a document. */
+export function rowsAt(doc: unknown, pointer: string): Record<string, unknown>[] {
+  let at: unknown = doc;
+  for (const raw of pointer === "" ? [] : pointer.slice(1).split("/")) {
+    const key = raw.replace(/~1/g, "/").replace(/~0/g, "~");
+    at = typeof at === "object" && at !== null ? (at as Record<string, unknown>)[key] : undefined;
+    if (at === undefined) throw new Error(`data.pointer ${JSON.stringify(pointer)}: nothing at "${key}"`);
+  }
+  if (!Array.isArray(at)) throw new Error(`data.pointer ${JSON.stringify(pointer || "(document)")} must lead to an array of row objects`);
+  return at as Record<string, unknown>[];
 }
 
 export function fieldTypes(table: Table): Record<string, FieldType> {

@@ -94,3 +94,33 @@ describe("plan", () => {
     expect(p.allocations[2]).toEqual({ dims: {} });
   });
 });
+
+describe("data from other programs", () => {
+  const views = [{ id: "s", type: "histogram", field: "step" }];
+
+  it("reads rows under a JSON Pointer, with the format from .jsonld", async () => {
+    const doc = { "@id": "urn:run", "a/b": { runs: [{ step: 1 }, { step: 2 }, { step: 4 }] } };
+    const spec = { data: { url: "run.jsonld", pointer: "/a~1b/runs" }, views } as Spec;
+    expect(validate(spec)).toEqual([]);
+    const table = await loadTable(spec, undefined, async () => new Response(JSON.stringify(doc)));
+    expect(table.rows).toBe(3);
+  });
+
+  it("lets data.format override the extension", async () => {
+    const spec = { data: { url: "/api/readings", format: "tsv" }, views } as Spec;
+    const table = await loadTable(spec, undefined, async () => new Response("step\tother\n3\tx\n5\ty\n"));
+    expect(fieldTypes(table)).toEqual({ step: "quantitative" });
+  });
+
+  it("rejects bad data options by path", () => {
+    expect(paths({ data: { url: "a", format: "xlsx", pointer: "rows", fromat: 1 }, views })).toEqual([
+      "/data/fromat", "/data/format", "/data/pointer",
+    ]);
+    expect(paths({ data: { values: [], pointer: "/x" }, views })).toEqual(["/data/pointer"]);
+  });
+
+  it("checks figure units and dpi", () => {
+    expect(paths({ data: { values: [] }, views, output: { interactive: "yes", figure: { format: "svg", width: 80, unit: "cm", dpi: 0 } } }))
+      .toEqual(["/output/interactive", "/output/figure/format", "/output/figure/unit", "/output/figure/dpi"]);
+  });
+});

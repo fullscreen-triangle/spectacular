@@ -17,9 +17,15 @@ export interface FieldDef {
   title?: string;
 }
 
+export type DataFormat = "csv" | "tsv" | "json";
+
 export type DataSource =
-  /** CSV (or TSV by extension) or a JSON array of row objects. */
-  | { url: string }
+  /**
+   * CSV, TSV or JSON. `format` defaults from the extension (.json/.jsonld: json, .tsv:
+   * tsv, otherwise csv). `pointer` is an RFC 6901 JSON Pointer to the array of row
+   * objects inside a JSON document, e.g. "/executions"; the default is the document.
+   */
+  | { url: string; format?: DataFormat; pointer?: string }
   /** Inline rows. */
   | { values: Record<string, unknown>[] }
   /** Columns supplied by the embedding program through `mount(..., { columns })`. */
@@ -78,7 +84,7 @@ export type View = ScatterView | HistogramView | BarsView | DensityView | Scatte
 export type ViewType = View["type"];
 
 export interface FigureOutput {
-  format: "svg" | "png" | "pdf";
+  format: "png" | "pdf";
   /** Physical width; publication figures are sized for the page, not the screen. */
   width: number;
   unit?: "mm" | "in" | "px";
@@ -136,6 +142,10 @@ const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
   scatter3d: ["pointSize"],
 };
 const TOP_KEYS = ["$schema", "version", "title", "description", "data", "fields", "views", "layout", "output"];
+const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], columns: ["columns"] };
+const DATA_FORMATS: DataFormat[] = ["csv", "tsv", "json"];
+const FIGURE_FORMATS: FigureOutput["format"][] = ["png", "pdf"];
+const FIGURE_UNITS = ["mm", "in", "px"];
 
 function distance(a: string, b: string): number {
   const d = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -207,10 +217,20 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
   else {
     const kinds = ["url", "values", "columns"].filter((k) => k in data);
     if (kinds.length !== 1) bad("/data", `give exactly one of url, values, columns (got ${kinds.join(", ") || "none"})`);
-    else if ("url" in data && typeof data.url !== "string") bad("/data/url", "must be a string");
-    else if ("values" in data && !(Array.isArray(data.values) && data.values.every(isObject)))
-      bad("/data/values", "must be an array of row objects");
-    else if ("columns" in data && data.columns !== "external") bad("/data/columns", 'must be "external"');
+    else if ("url" in data) {
+      unknownKeys(data, DATA_KEYS.url, "/data", bad);
+      if (typeof data.url !== "string") bad("/data/url", "must be a string");
+      if (data.format !== undefined && !DATA_FORMATS.includes(data.format as DataFormat))
+        bad("/data/format", `one of ${DATA_FORMATS.join(", ")}`);
+      if (data.pointer !== undefined && !(typeof data.pointer === "string" && (data.pointer === "" || data.pointer.startsWith("/"))))
+        bad("/data/pointer", 'a JSON Pointer: "" or a string starting with "/"');
+    } else if ("values" in data) {
+      unknownKeys(data, DATA_KEYS.values, "/data", bad);
+      if (!(Array.isArray(data.values) && data.values.every(isObject))) bad("/data/values", "must be an array of row objects");
+    } else {
+      unknownKeys(data, DATA_KEYS.columns, "/data", bad);
+      if (data.columns !== "external") bad("/data/columns", 'must be "external"');
+    }
   }
 
   const declared: Record<string, FieldType> = { ...types };
@@ -277,7 +297,11 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
   }
   if (spec.output !== undefined) {
     if (!isObject(spec.output)) bad("/output", "must be an object");
-    else unknownKeys(spec.output, ["interactive", "figure"], "/output", bad);
+    else {
+      unknownKeys(spec.output, ["interactive", "figure"], "/output", bad);
+      if (spec.output.interactive !== undefined && typeof spec.output.interactive !== "boolean")
+        bad("/output/interactive", "must be true or false");
+    }
   }
   const views = spec.views.filter((v: unknown): v is View => isObject(v) && (v.type as string) in VIEW_FIELDS);
   const dims = views.reduce((n: number, v: View) => n + dimensionsNeeded(v), 0);
@@ -289,11 +313,74 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     if (!isObject(figure)) bad("/output/figure", "must be an object");
     else {
       unknownKeys(figure, ["format", "width", "unit", "dpi"], "/output/figure", bad);
-      if (!["svg", "png", "pdf"].includes(figure.format as string)) bad("/output/figure/format", "one of svg, png, pdf");
+      if (!FIGURE_FORMATS.includes(figure.format as FigureOutput["format"]))
+        bad("/output/figure/format", `one of ${FIGURE_FORMATS.join(", ")}`);
       if (!(typeof figure.width === "number" && figure.width > 0)) bad("/output/figure/width", "required: a positive number");
+      if (figure.unit !== undefined && !FIGURE_UNITS.includes(figure.unit as "mm")) bad("/output/figure/unit", `one of ${FIGURE_UNITS.join(", ")}`);
+      if (figure.dpi !== undefined && !(typeof figure.dpi === "number" && figure.dpi > 0)) bad("/output/figure/dpi", "must be a positive number");
     }
   }
   return problems;
+}
+
+/**
+ * A JSON Schema (draft 2020-12) for specs, built from the same tables `validate` reads,
+ * so programs in any language can check or autocomplete a spec. It covers structure
+ * only; `validate` also checks fields against the data and the dimension limit.
+ */
+export function jsonSchema(): Record<string, unknown> {
+  const str = { type: "string" };
+  const field = { type: "string", minLength: 1, description: "the name of a field in the data" };
+  const positive = { type: "number", exclusiveMinimum: 0 };
+  const extras: Record<string, Record<string, unknown>> = {
+    brush: {},
+    pointSize: positive,
+    bins: { type: "integer", minimum: 1, maximum: 10_000 },
+  };
+  const view = (type: ViewType) => {
+    const { required, optional } = VIEW_FIELDS[type];
+    const properties: Record<string, unknown> = {
+      id: { type: "string", minLength: 1 },
+      type: { const: type },
+      title: str,
+      height: positive,
+      span: positive,
+    };
+    for (const k of [...required, ...optional]) properties[k] = field;
+    for (const k of EXTRA_VIEW_KEYS[type]) properties[k] = k === "brush" ? { enum: BRUSHES[type] } : extras[k];
+    if (type === "density")
+      properties.bins = { type: "array", items: { type: "integer", minimum: 1, maximum: 1024 }, minItems: 2, maxItems: 2 };
+    return { type: "object", required: ["id", "type", ...required], properties, additionalProperties: false };
+  };
+  const closed = (properties: Record<string, unknown>, required: string[]) =>
+    ({ type: "object", required, properties, additionalProperties: false });
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    title: `spectacular view spec (${SPEC_VERSION})`,
+    ...closed({
+      $schema: str,
+      version: { const: SPEC_VERSION },
+      title: str,
+      description: str,
+      data: {
+        oneOf: [
+          closed({ url: str, format: { enum: DATA_FORMATS }, pointer: { type: "string", pattern: "^(/.*)?$" } }, ["url"]),
+          closed({ values: { type: "array", items: { type: "object" } } }, ["values"]),
+          closed({ columns: { const: "external" } }, ["columns"]),
+        ],
+      },
+      fields: {
+        type: "object",
+        additionalProperties: closed({ type: { enum: ["quantitative", "nominal"] }, title: str }, []),
+      },
+      views: { type: "array", minItems: 1, items: { oneOf: (Object.keys(VIEW_FIELDS) as ViewType[]).map(view) } },
+      layout: closed({ columns: { type: "integer", minimum: 1, maximum: 12 } }, []),
+      output: closed({
+        interactive: { type: "boolean" },
+        figure: closed({ format: { enum: FIGURE_FORMATS }, width: positive, unit: { enum: FIGURE_UNITS }, dpi: positive }, ["format", "width"]),
+      }, []),
+    }, ["data", "views"]),
+  };
 }
 
 export class SpecError extends Error {
