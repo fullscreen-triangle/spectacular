@@ -1,4 +1,4 @@
-// Renders a spec to a PNG or PDF file through the built viewer in headless Chromium.
+// Renders a spec to an SVG, PDF or PNG file through the built viewer in headless Chromium.
 import { writeFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { startServer } from "./server.mjs";
@@ -14,8 +14,8 @@ const BROWSER_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", 
  */
 export async function render({ spec, specFile, specText, out, width, unit, dpi, timeout = 120_000 }) {
   const format = extname(out).slice(1).toLowerCase();
-  if (format !== "png" && format !== "pdf")
-    throw Object.assign(new Error(`cannot write "${out}": the output must end in .png or .pdf`), { exit: 2 });
+  if (!["svg", "pdf", "png"].includes(format))
+    throw Object.assign(new Error(`cannot write "${out}": the output must end in .svg, .pdf or .png`), { exit: 2 });
   const fig = spec.output?.figure ?? {};
   const u = unit ?? fig.unit ?? "px";
   if (!(u in CSS_PX)) throw Object.assign(new Error(`--unit must be mm, in or px, not "${u}"`), { exit: 2 });
@@ -43,6 +43,17 @@ export async function render({ spec, specFile, specText, out, width, unit, dpi, 
     const app = page.locator("#app");
     const box = await app.boundingBox();
     const height = Math.ceil(box.height);
+    if (format === "svg") {
+      // Vector where the views allow it; canvases are embedded at `scale`. A physical
+      // unit is written into the document, so the figure keeps its size when placed.
+      let svg = await page.evaluate(() => window.spectacular.toSVG());
+      if (u !== "px") {
+        const size = (px) => `${+(px / CSS_PX[u]).toFixed(3)}${u}`;
+        svg = svg.replace(/<svg([^>]*?) width="([\d.]+)" height="([\d.]+)"/, (_, pre, w, h) => `<svg${pre} width="${size(+w)}" height="${size(+h)}"`);
+      }
+      await writeFile(out, svg);
+      return { file: out, format, width: cssWidth, height };
+    }
     if (format === "png") {
       await writeFile(out, await app.screenshot({ type: "png" }));
       return { file: out, format, width: cssWidth, height, pixels: [Math.round(box.width * scale), Math.round(box.height * scale)] };

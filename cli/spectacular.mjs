@@ -11,7 +11,7 @@ import { check } from "./check.mjs";
 const USAGE = `usage: spectacular <command> [options]
 
   validate <spec.json|-> [...]   check each spec, and its fields against local data
-  render <spec.json|-> -o <out.png|out.pdf> [--width N] [--unit mm|in|px] [--dpi N]
+  render <spec.json|-> -o <out.svg|.pdf|.png> [--width N] [--unit mm|in|px] [--dpi N]
                                  draw the spec to a file; flags override output.figure
   serve <spec.json> [--port N] [--open] [--indices] [--no-watch]
                                  open the spec interactively; report each selection,

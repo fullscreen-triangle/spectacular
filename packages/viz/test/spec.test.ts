@@ -120,7 +120,7 @@ describe("data from other programs", () => {
   });
 
   it("checks figure units and dpi", () => {
-    expect(paths({ data: { values: [] }, views, output: { interactive: "yes", figure: { format: "svg", width: 80, unit: "cm", dpi: 0 } } }))
+    expect(paths({ data: { values: [] }, views, output: { interactive: "yes", figure: { format: "gif", width: 80, unit: "cm", dpi: 0 } } }))
       .toEqual(["/output/interactive", "/output/figure/format", "/output/figure/unit", "/output/figure/dpi"]);
   });
 });

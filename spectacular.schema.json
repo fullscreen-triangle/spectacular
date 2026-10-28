@@ -373,8 +373,9 @@
           "properties": {
             "format": {
               "enum": [
-                "png",
-                "pdf"
+                "svg",
+                "pdf",
+                "png"
               ]
             },
             "width": {

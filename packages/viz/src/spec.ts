@@ -84,7 +84,7 @@ export type View = ScatterView | HistogramView | BarsView | DensityView | Scatte
 export type ViewType = View["type"];
 
 export interface FigureOutput {
-  format: "png" | "pdf";
+  format: "svg" | "pdf" | "png";
   /** Physical width; publication figures are sized for the page, not the screen. */
   width: number;
   unit?: "mm" | "in" | "px";
@@ -144,7 +144,7 @@ const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
 const TOP_KEYS = ["$schema", "version", "title", "description", "data", "fields", "views", "layout", "output"];
 const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], columns: ["columns"] };
 const DATA_FORMATS: DataFormat[] = ["csv", "tsv", "json"];
-const FIGURE_FORMATS: FigureOutput["format"][] = ["png", "pdf"];
+const FIGURE_FORMATS: FigureOutput["format"][] = ["svg", "pdf", "png"];
 const FIGURE_UNITS = ["mm", "in", "px"];
 
 function distance(a: string, b: string): number {

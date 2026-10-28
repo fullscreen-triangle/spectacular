@@ -5,7 +5,7 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -53,7 +53,14 @@ try {
   ok(r.code === 0 && pdf.startsWith("%PDF") && (pdf.match(/\/Type\s*\/Page[^s]/g) ?? []).length === 1 && Math.abs(+box[1] / 72 * 25.4 - 180) < 0.5,
     `render pdf: one page, 180 mm wide from output.figure (${box ? (+box[1] / 72 * 25.4).toFixed(1) + " mm" : "no MediaBox"})`);
   ok(run(["render", "-", "-o", "x.png"], JSON.stringify({ ...lorenz, data: { url: "gone.csv" } })).code === 1, "render: missing data exits 1 before starting a browser");
-  ok(run(["render", "lorenz.spec.json", "-o", "x.svg"]).code === 2, "render: an unsupported output format exits 2");
+  ok(run(["render", "lorenz.spec.json", "-o", "x.gif"]).code === 2, "render: an unsupported output format exits 2");
+  r = run(["render", "--json", "lorenz.spec.json", "-o", "fig.svg", "--width", "180", "--unit", "mm"]);
+  const svg = r.code === 0 ? readFileSync(join(dir, "fig.svg"), "utf8") : "";
+  const count = (re) => (svg.match(re) ?? []).length;
+  ok(svg.startsWith("<?xml") && /<svg[^>]* width="179\.\d+mm"/.test(svg) && !svg.includes("currentColor"),
+    "render svg: a standalone document sized in mm, with no page-dependent colours");
+  ok(count(/<circle /g) === 29_900 && count(/<image /g) === 1 && svg.includes(">Lorenz attractor</text>"),
+    `render svg: the 2D scatter is ${count(/<circle /g)} vector points, the 3D view an image, titles are text`);
 
   // serve: brush in a real page, read the selection back from stdout.
   const child = spawn(process.execPath, [cli, "serve", "--json", "--indices", "lorenz.spec.json"], { cwd: dir });
@@ -76,6 +83,12 @@ try {
   };
   const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
   try {
+    if (svg) {
+      const p = await browser.newPage();
+      await p.goto(pathToFileURL(join(dir, "fig.svg")).href);
+      ok(await p.evaluate(() => document.documentElement.tagName === "svg" && !document.querySelector("parsererror")), "render svg: the file parses as SVG on its own");
+      await p.close();
+    }
     const { url } = await next("listening");
     const u = new URL(url);
     ok(u.hostname === "127.0.0.1", "serve: binds loopback");
