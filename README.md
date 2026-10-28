@@ -11,17 +11,26 @@ point at the exact path.
 
 ## Handing spectacular a task
 
-**AI agents in other repos: read [`spectacular-specifications.md`](spectacular-specifications.md).**
-It is the complete guide to the spec, viewer mode, validation, limits and what is not
-built yet.
+**Programs and AI agents in other repos: read
+[`spectacular-specifications.md`](spectacular-specifications.md).** It is the complete
+guide to the spec, the command, limits and what is not built yet.
 
-Put a spec and its data under `examples/local/<project>/` (gitignored), validate it,
-then open it in the viewer:
+A program in any language drives one command and reads JSON lines and exit codes
+(0 ok, 1 spec or data problems, 2 usage or I/O, 3 rendering failed):
 
 ```bash
-npm run validate -- examples/local/proj/x.spec.json
-npm run dev     # then http://localhost:5173/?spec=/local/proj/x.spec.json
+spectacular validate run.spec.json --json          # problems by JSON path; row count and field types
+spectacular render run.spec.json -o fig.pdf        # PNG or PDF, sized by output.figure or flags
+spectacular serve run.spec.json --json --indices   # linked views on 127.0.0.1; prints each selection
+spectacular schema > spectacular.schema.json       # JSON Schema for specs
 ```
+
+`spectacular` is `node cli/spectacular.mjs` (or `npm link` it). `serve` prints
+`{"event":"selection","selected":…,"filters":[{"view":"time","field":"t","range":[60.7,90.54]}]}`
+after each brush and reloads the page when the spec or data file changes, so a running
+experiment can append readings and the views follow.
+[`examples/programs/growth_plate.py`](examples/programs/growth_plate.py) is a complete
+caller in standard-library Python.
 
 ```json
 {
@@ -49,7 +58,9 @@ npm run dev     # then http://localhost:5173/?spec=/local/proj/x.spec.json
 | `scatter3d` | `x`, `y`, `z`, optional `color` | — (shows other views' filters) |
 
 `data` is `{ "url" }` (CSV, TSV or JSON rows), `{ "values": [...] }`, or
-`{ "columns": "external" }` with columns passed in by the embedding program.
+`{ "columns": "external" }` with columns passed in by the embedding program. With `url`,
+`format` overrides the extension and `pointer` (a JSON Pointer such as `"/executions"`)
+reads rows nested inside a JSON or JSON for Linked Data (JSON-LD) document.
 `examples/synthetic.spec.json` and `examples/lorenz.spec.json` (with `lorenz.csv`) are
 complete specs. `validate(spec)` returns
 `[{ path, message }]`, for example `/views/2/field: histogram.field needs a quantitative
@@ -60,7 +71,7 @@ field; "species" is nominal`.
 ```ts
 import { mount } from "@spectacular/viz";
 const handle = await mount(element, spec, { columns });  // columns only for "external" data
-handle.onUpdate((s) => console.log(s.selectedCount));
+handle.onUpdate((s) => console.log(s.selectedCount, handle.selection().filters));
 handle.destroy();
 ```
 
@@ -71,9 +82,11 @@ Needs Rust with the `wasm32-unknown-unknown` target, `wasm-pack`, and Node 20+.
 ```bash
 npm run build:wasm          # crates/chigutiro-wasm -> packages/chigutiro-wasm (generated; first)
 npm install
+npm run build               # the viewer that render and serve load (packages/viz/dist)
 npm run dev                 # demo at http://localhost:5173/?rows=2000000
 npm test                    # Rust tests, WASM-vs-JS check, spec/data/planner tests
 npm run test:e2e -w @spectacular/viz   # headless Chromium: brushes, clicks, pixels
+npm run test:cli            # the command as a program uses it: exit codes, render, serve
 cargo run --release -p chigutiro --example bench   # 10M-row timings
 ```
 
@@ -102,16 +115,18 @@ or the whole mask when that is smaller, and the GPU gets one byte per point per 
 
 ## Status
 
-Working: the crossfilter and its WASM bindings, the spec and validator, CSV/JSON/inline/
-external data, and five view types (WebGL2 scatter, three.js 3D scatter, density grid,
-histogram, bars). The demo and an end-to-end browser test run against the production
-build.
+Working: the crossfilter and its WebAssembly (WASM) bindings, the spec, validator and
+JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are five view types:
+WebGL2 scatter, three.js 3D scatter, density grid, histogram and bars. The `spectacular`
+command validates specs, renders PNG and PDF figures at physical size, and serves a
+viewer that reports selections. The
+demo and end-to-end browser tests run against the production build.
 
 Next:
-- Publication figures: render a spec headlessly to SVG, PDF or PNG at physical size.
-- Arrow IPC input.
+- SVG figures, and rendering a brushed state.
+- Apache Arrow input (the inter-process communication (IPC) file format).
 - Pan and zoom.
 - Lasso selection.
 - Faster large changes (cached per-row bins, f32 keys, radix-sorted builds).
 
-The 2025 implementation (an NL→D3 pipeline) is preserved at tag `legacy-2025`.
+The 2025 implementation (a natural-language-to-D3 pipeline) is preserved at tag `legacy-2025`.

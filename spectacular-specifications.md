@@ -1,10 +1,16 @@
-# Spectacular: specification for AI agents
+# Spectacular: specification for programs and agents
 
-This file is for AI agents working in **other** repositories that need an interactive
-scientific visualisation. It says what spectacular does, how to hand it a task, the
-complete spec format, and what it does not do yet. Everything here describes the code on
-branch `rebuild` of [fullscreen-triangle/spectacular](https://github.com/fullscreen-triangle/spectacular). If this file and the code
-disagree, the code wins: `packages/viz/src/spec.ts` is the contract.
+This file is for whatever, in **another** repository, needs a scientific visualisation:
+an ordinary program (a lab-automation runtime, a pipeline step, a notebook, a CI job)
+or an AI agent writing specs for one. It says what spectacular does, how to hand it a
+task, the complete spec format, and what it does not do yet. Everything here describes
+the code on branch `rebuild` of
+[fullscreen-triangle/spectacular](https://github.com/fullscreen-triangle/spectacular).
+If this file and the code disagree, the code wins: `packages/viz/src/spec.ts` is the
+contract, and `spectacular.schema.json` is generated from it.
+
+**Programs** need §2 and §8: one command-line tool, JSON in and out, fixed exit codes.
+They never link against spectacular's code.
 
 ## 1. What it is
 
@@ -23,30 +29,41 @@ with problems that each name the exact JSON path at fault.
 
 Use it when someone needs to **explore** a table: find which rows explain a peak,
 see how a cut on one variable changes the others, look at a 3D structure, or compare
-categories. Do not use it for a static figure in a paper (export is not built yet, see
-§9), or for data that is not one flat table.
+categories. It also draws the same views to a PNG or PDF file for a paper or a report
+(§8.3). Do not use it for data that is not one flat table.
 
-## 2. The three ways in
+## 2. The ways in
 
 | You have | Do this |
 |---|---|
-| A spec plus a CSV, TSV or JSON file | **Viewer mode**, §2.1. No code. |
+| A program in any language that writes a spec and a data file | The **`spectacular` command**, §8: `validate`, `render`, `serve`. |
+| A spec plus a data file, and a person who wants to look | `spectacular serve <spec>`, §8.4, or the dev server, §2.1. |
 | A TypeScript or JavaScript web app | **Embed** with `mount()`, §7. |
-| Only a spec to check | **Validate** from the command line, §2.2. |
+| Only a spec to check | `spectacular validate <spec>`, §2.2. |
 
 Setup, once per machine, from the spectacular checkout. It needs Rust with the
-`wasm32-unknown-unknown` target, `wasm-pack`, and Node 20 or later:
+`wasm32-unknown-unknown` target, `wasm-pack`, and Node 22.18 or later (the command runs
+TypeScript sources directly):
 
 ```bash
 npm run build:wasm     # builds packages/chigutiro-wasm; must come before npm install
 npm install
+npm run build          # the viewer that render and serve use (packages/viz/dist)
+npx playwright install chromium   # only for render
 ```
 
-### 2.1 Viewer mode
+Then call `node <checkout>/cli/spectacular.mjs <command>`. Inside the checkout,
+`npm run spectacular -- <command>` does the same, and `npm link` puts `spectacular` on
+the `PATH`.
+
+### 2.1 Viewer mode with the dev server
+
+For working on spectacular itself, or for a quick look without the command:
 
 1. Put the spec and its data file side by side under `examples/local/<your-project>/`.
-   That directory is gitignored, so private data never gets committed. Files under
-   `examples/` are served at the site root.
+   That directory is gitignored, so private data never gets committed. In the dev
+   server, files under `examples/` are served at the site root; the production build
+   leaves them out.
 2. In the spec, write `"data": { "url": "<data file name>" }`. A relative URL resolves
    against the spec's own URL.
 3. Start the dev server: `npm run dev` (Vite, default `http://localhost:5173`).
@@ -54,7 +71,8 @@ npm install
 
 `?spec=` also accepts an absolute URL, for example a spec served by your own repo's
 server. The server must then send Cross-Origin Resource Sharing (CORS) headers for
-both the spec and the data.
+both the spec and the data. `spectacular serve` (§8.4) needs none of this: it serves a
+spec from wherever it is.
 
 **Signals for automation.** `document.body.dataset.state` starts as `"loading"` and
 becomes `"ready"` or `"error"`. On `"error"`, the element `#error` holds the message,
@@ -64,8 +82,8 @@ the handle described in §7.
 ### 2.2 Validate before you open anything
 
 ```bash
-npm run validate -- path/to/spec.json [more.spec.json ...]
-# or: node scripts/validate.mjs path/to/spec.json
+spectacular validate path/to/spec.json [more.spec.json ...]
+# or, in the checkout: npm run validate -- path/to/spec.json
 ```
 
 It checks the structure. When `data.url` names a local file beside the spec, or the
@@ -81,7 +99,7 @@ x.spec.json /views/3/type: unknown view type "pie"; one of scatter, histogram, b
 
 Exit codes: `0` all valid, `1` problems found, `2` usage or I/O error. When a spec's data
 is a remote URL or `"external"`, only the structure is checked, and the output says
-`valid (structure only)`.
+`valid (structure only)`. `--json` prints one object per spec instead (§8.2).
 
 **Run it after every edit to a spec.** Unknown properties are errors, not ignored, so
 a typo cannot quietly draw a different figure.
@@ -123,14 +141,14 @@ data.
 | Property | Type | Required | Meaning |
 |---|---|---|---|
 | `version` | `"spectacular/v0"` | no | If present, it must be exactly this. Include it. |
-| `$schema` | string | no | Ignored by the renderer. |
+| `$schema` | string | no | Ignored by the renderer. Point it at `spectacular.schema.json` for editor checking. |
 | `title` | string | no | Heading above the views. |
 | `description` | string | no | Not displayed; use it for provenance. |
 | `data` | object | **yes** | §4.2. |
 | `fields` | object | no | Field types and axis titles, §4.3. |
 | `views` | array | **yes** | At least one view, §4.5. |
 | `layout` | object | no | `{ "columns": n }`, n an integer from 1 to 12. The default is the smaller of 3 and the number of views. |
-| `output` | object | no | `{ "interactive": bool, "figure": {...} }`. It is validated, but **nothing renders `figure` yet** (§9). |
+| `output` | object | no | `{ "interactive": bool, "figure": { "format": "png" \| "pdf", "width": n, "unit"?: "mm" \| "in" \| "px", "dpi"?: n } }`. `figure` sets the default size for `spectacular render` (§8.3). `interactive` is accepted and not yet used. |
 
 Any other property is an error.
 
@@ -138,9 +156,21 @@ Any other property is an error.
 
 | Form | Use |
 |---|---|
-| `{ "url": "file.csv" }` | CSV. `.tsv` is read as tab-separated; `.json` must be an array of row objects. Relative URLs resolve against the spec. |
+| `{ "url": "file.csv", "format"?: ..., "pointer"?: ... }` | A file. Relative URLs resolve against the spec. |
 | `{ "values": [ { "a": 1, "k": "x" }, ... ] }` | Inline rows, for small tables. |
 | `{ "columns": "external" }` | Columns passed by the program calling `mount()` (§7). The fast path for large data. |
+
+With `url`:
+- **`format`** is `"csv"`, `"tsv"` or `"json"`. The default comes from the extension:
+  `.json` and `.jsonld` read as JSON, `.tsv` as TSV, anything else as CSV. Set it when
+  the URL has no telling extension, such as an API endpoint.
+- **`pointer`** is a JSON Pointer, as defined in Request for Comments (RFC) 6901, to the
+  array of row objects inside a JSON document. Without it, the document itself must be
+  that array. A run log or JSON for Linked Data (JSON-LD) record usually nests its rows: `{ "url": "run.jsonld", "pointer": "/executions" }`
+  reads the objects in the document's `executions` array as rows. Escape `/` in a key as
+  `~1` and `~` as `~0`.
+- Each row's fields must be plain values. A nested object or array in a field is not
+  flattened; give the program that writes the file a flat column for anything to plot.
 
 Only the fields that views use, or that `fields` declares, are loaded. Other columns
 are ignored.
@@ -280,6 +310,10 @@ handle.destroy();
     `counts` and `baseline` (per-group counts, filtered and unfiltered), and `elapsed`
     (crossfilter milliseconds for the last update);
   - `onUpdate(listener)`;
+  - `selection()`: the active brushes in data terms, `{ selected, rows, filters }`, the
+    same object `spectacular serve` prints (§8.4);
+  - `selectedRows()`: the selected row indices (0-based, in data order) as a
+    `Uint32Array`;
   - `destroy()`.
 - The package is not published to npm. Inside this repository it is the npm workspace
   in `packages/viz` (package name @spectacular/viz), and its entry point is TypeScript
@@ -287,13 +321,117 @@ handle.destroy();
   consuming app must bundle it (Vite works). The worker and WASM files are resolved
   with `new URL(..., import.meta.url)`.
 
-## 8. Driving it headlessly
+## 8. Driving it from another program
 
-There is no programmatic "brush view X to [a, b]" call yet. Drive the page the way a
-user would. `packages/viz/test/e2e.mjs` does exactly this with Playwright:
+A program talks to spectacular through one command, `cli/spectacular.mjs`. It writes a
+spec and a data file, runs a command, and reads JSON from stdout and an exit code. That
+is the whole interface, so the calling language does not matter.
+`examples/programs/growth_plate.py` is a complete caller in standard-library Python: it
+writes plate-reader readings, validates, renders a PDF and a PNG, then serves the views
+and prints the wells a person brushes.
+
+### 8.1 Commands and exit codes
+
+```
+spectacular validate <spec.json|-> [...]          check specs and their local data
+spectacular render <spec.json|-> -o <out.png|out.pdf> [--width N] [--unit mm|in|px] [--dpi N]
+spectacular serve <spec.json> [--port N] [--open] [--indices] [--no-watch]
+spectacular schema                                print the JSON Schema for specs
+```
+
+| Exit | Meaning | What to do |
+|---|---|---|
+| `0` | Done. | |
+| `1` | The spec or its data has problems. | Read `problems`, fix the spec or the data file, retry. |
+| `2` | Usage or I/O: a bad flag, an unreadable file, an unsupported output extension, or the viewer is not built. | Fix the call or the setup (§2). |
+| `3` | Rendering failed in the browser. | Read `error`; retrying the same spec will fail the same way. |
+
+`-` in place of a spec file reads the spec from stdin; a relative `data.url` then
+resolves against the working directory. `serve` needs a real file, because it watches
+it.
+
+### 8.2 Machine output (`--json`)
+
+With `--json`, every command prints one JSON object per line on stdout and nothing else
+there. Human-readable messages go to stderr.
+
+- **validate:** one line per spec:
+  `{"spec":"x.spec.json","ok":true,"problems":[],"rows":29900,"fields":{"t":"quantitative","lobe":"nominal"}}`.
+  `rows` and `fields` are present only when the data was loaded (a local file or inline
+  values).
+- **render:**
+  `{"ok":true,"file":"/abs/fig.png","format":"png","width":960,"height":1060,"pixels":[1920,2119]}`.
+  `width` and `height` are in CSS pixels; `pixels` (PNG only) is the image size.
+- **Any failure:** `{"ok":false,"error":"...","exit":1}`, with `problems` added when the
+  spec was invalid.
+- **serve:** a stream of events, described in §8.4.
+
+`spectacular schema` prints a JSON Schema (draft 2020-12) for specs. It is committed as
+`spectacular.schema.json`. A program can use it to check a spec before writing it, or to
+generate one. The schema covers structure only; `validate` also checks fields against
+the data and the 32-dimension limit.
+
+### 8.3 `render`: figures to files
+
+```bash
+spectacular render growth.spec.json -o growth.pdf
+spectacular render growth.spec.json -o growth.png --width 900 --unit px --dpi 192
+```
+
+- The output format comes from the extension: `.png` or `.pdf`.
+- **Size:** each flag overrides one value of the spec's `output.figure`. Without either,
+  the figure is 960 CSS px wide. Units: `mm` and `in` are physical; 1 CSS px is 1/96 in.
+  `dpi` defaults to 300 for `mm` and `in` and to 192 (2×) for `px`. The height follows
+  from the views' heights.
+- **PDF:** a single page exactly the figure's size. Text, axes, histograms and bars stay
+  vector. Point and density views are embedded as images at the chosen dpi.
+- What is drawn is the unfiltered state, with the spec's title and without the
+  interactive status line and hints.
+- The command validates first: an invalid spec exits `1` without starting a browser.
+  Rendering takes a few seconds, mostly starting Chromium.
+
+### 8.4 `serve`: interactive views that report back
+
+```bash
+spectacular serve growth.spec.json --json --indices --open
+```
+
+`serve` starts a web server on 127.0.0.1 only (a random port unless `--port`). It serves
+the spec and the files in its directory and below, under a random path prefix; the URL
+contains that prefix. `--open` opens the URL in the default browser. It runs until
+stopped (ctrl-c, or the signals `SIGINT` and `SIGTERM`). With `--json` it prints events:
+
+```json
+{"event":"listening","url":"http://127.0.0.1:53111/?spec=/s/3f…/growth.spec.json&channel&indices"}
+{"event":"selection","selected":2985,"rows":29900,"filters":[{"view":"time","field":"t","range":[60.7,90.54]}],"indices":[6070,6071,...]}
+{"event":"selection","selected":12941,"rows":29900,"filters":[{"view":"lobe","field":"lobe","values":["left"]}]}
+{"event":"reload","file":"readings.csv"}
+{"event":"problems","problems":[{"path":"/views/0/field","message":"..."}]}
+```
+
+- **`selection`** is printed after each brush settles (150 ms without change). A row is
+  selected when it passes every filter. A filter is either `range` (inclusive at both
+  ends, in data units, never matching a missing value) or `values` (the chosen
+  categories). `filters` is empty when nothing is brushed. A program can apply the
+  filters to its own copy of the data and get exactly the selected rows.
+- **`indices`** (only with `--indices`) lists the selected rows, 0-based, in data order.
+  At millions of rows this is large; prefer `filters` there.
+- **`reload`:** the spec, or the local data file it names, changed on disk. Open pages
+  reload, and brushes are lost. A program can append readings to the data file while a
+  run is in progress, and the views follow (`--no-watch` turns this off).
+- **`problems`** is printed once at start if the spec is invalid. The server still runs,
+  the page shows the problems, and it reloads once the file is fixed.
+
+The URL is the access check. Any page holding it can read the spec's directory, so do
+not paste it anywhere shared.
+
+### 8.5 Driving the page yourself
+
+There is no programmatic "brush view X to [a, b]" call yet. To script brushes, drive the
+page the way a user would, as `cli/test.mjs` does with Playwright:
 
 ```js
-await page.goto("http://localhost:5173/?spec=/local/proj/x.spec.json");
+await page.goto(url);   // the URL from serve's "listening" event
 await page.waitForFunction(() => document.body.dataset.state !== "loading");
 const box = await page.locator('[data-view="mass"] .sv-brush .overlay').boundingBox();
 await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
@@ -314,10 +452,13 @@ Chromium against 12–18 ms in Node. For timings, run `npm run test:wasm` or
 
 Do not write specs that rely on these; the validator will reject most of them:
 
-- **Publication figure export.** `output.figure` is accepted and validated, but nothing
-  renders SVG, PDF or PNG yet. For now, take a screenshot through §8.
+- **SVG output.** `render` writes PNG and PDF; use PDF for vector text and axes.
+- **Rendering a brushed state.** `render` draws the unfiltered views; a selection cannot
+  be set in the spec.
 - **Arrow or Parquet input.** Use CSV, TSV, JSON rows, inline values or external
   columns.
+- **Uncertainty.** There are no error bars or bands. Put a value and its resolution in
+  two columns, and plot each.
 - **Data transforms.** There are no derived fields, aggregation, joins or multiple
   datasets. Compute them in your repo first and write the result to the data file.
 - **Initial brushes in the spec**, or a programmatic brush API.
@@ -327,7 +468,7 @@ Do not write specs that rely on these; the validator will reject most of them:
 
 ## 10. Checklist before you hand a spec over
 
-1. `npm run validate -- <spec>` exits 0, and the summary lists every field with the
+1. `spectacular validate <spec>` exits 0, and the summary lists every field with the
    type you intended.
 2. Numeric codes and identifiers are declared `nominal`.
 3. Above about 200,000 rows you used `density` and kept `scatter` for regions you can
@@ -335,3 +476,4 @@ Do not write specs that rely on these; the validator will reject most of them:
 4. The dimension count is within 32 (§4.6). The validator checks this.
 5. In viewer mode, the page reached `data-state="ready"`, and the status line shows the
    row count you expect.
+6. A program checks the exit code of every call, not just the output.
