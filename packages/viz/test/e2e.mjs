@@ -94,32 +94,7 @@ if (shots) {
   console.log(`screenshot: ${shots}/demo.png`);
 }
 
-// Viewer mode, as another repo would use it: a spec file whose data.url is a CSV beside it.
-await page.goto("http://localhost:4317/?spec=/lorenz.spec.json");
-await page.waitForFunction(() => document.body.dataset.state !== "loading", null, { timeout: 60_000 });
-if ((await page.evaluate(() => document.body.dataset.state)) !== "ready") await fail(`viewer: ${await page.textContent("#error")}`);
-const rowsLoaded = await page.evaluate(() => window.spectacular.table.rows);
-if (rowsLoaded !== 29_900) await fail(`viewer loaded ${rowsLoaded} rows, expected 29900`);
-before = await status();
-const tb = await page.locator('[data-view="time"] .sv-brush .overlay').boundingBox();
-await page.mouse.move(tb.x + tb.width * 0.2, tb.y + tb.height / 2);
-await page.mouse.down();
-await page.mouse.move(tb.x + tb.width * 0.3, tb.y + tb.height / 2, { steps: 5 });
-await page.mouse.up();
-await settle(before);
-console.log(`viewer: ${await status()}`);
-c = await consistent();
-if (c.mask !== c.count || c.count === 0 || c.count >= rowsLoaded) await fail(`viewer brush: mask ${c.mask}, count ${c.count}`);
-if (shots) {
-  await page.screenshot({ path: `${shots}/viewer.png`, fullPage: true });
-  console.log(`screenshot: ${shots}/viewer.png`);
-}
-
-// A broken spec must fail visibly, with the offending path.
-await page.goto("http://localhost:4317/?spec=/does-not-exist.spec.json");
-await page.waitForFunction(() => document.body.dataset.state !== "loading", null, { timeout: 30_000 });
-if ((await page.evaluate(() => document.body.dataset.state)) !== "error") await fail("a missing spec did not report an error");
-problems.length = 0; // the 404 above is expected
+// Viewer mode (?spec=) is driven through `spectacular serve` in cli/test.mjs.
 
 if (problems.length) await fail("errors were logged");
 console.log("PASS");
