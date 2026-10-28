@@ -6,6 +6,11 @@ import type { View } from "../spec";
 export interface Panel {
   readonly el: HTMLElement;
   update(state: EngineState): void;
+  /**
+   * Vector content for SVG export, replacing the canvases in `plot`, in its coordinates.
+   * Views without it are exported as images of their canvases.
+   */
+  vector?(): { plot: HTMLElement; content: SVGElement } | undefined;
   destroy(): void;
 }
 

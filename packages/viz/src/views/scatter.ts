@@ -1,5 +1,6 @@
-import { axisBottom, axisLeft, brush, scaleLinear } from "d3";
+import { axisBottom, axisLeft, brush, interpolateViridis, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
+import { SVG_NS } from "../export";
 import type { ScatterView } from "../spec";
 import {
   COLOR_GLSL, PALETTE, axisLabels, centred, colorChannel, frame, hexToRgb, numeric, pointAlpha, selectedScale,
@@ -37,6 +38,9 @@ void main() {
   if (dot(d, d) > 0.25) discard;
   color = vec4(v_color.rgb * v_color.a, v_color.a);
 }`;
+
+/** Up to this many rows, SVG export draws circles; above it, an image of the canvas. */
+export const VECTOR_POINTS = 50_000;
 
 export function program(gl: WebGL2RenderingContext, vert: string, frag: string): WebGLProgram {
   const compile = (type: number, src: string) => {
@@ -100,7 +104,8 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   const u = (n: string) => gl.getUniformLocation(prog, n);
   gl.uniform2f(u("u_scale"), sx, sy);
   gl.uniform2f(u("u_offset"), (px.centre - x0) * sx - 1, (py.centre - y0) * sy - 1);
-  gl.uniform1f(u("u_size"), view.pointSize ?? (table.rows > 200_000 ? 2 : 4) * dpr);
+  const size = view.pointSize ?? (table.rows > 200_000 ? 2 : 4); // diameter in CSS px
+  gl.uniform1f(u("u_size"), size * dpr);
   gl.uniform1i(u("u_colorMode"), color.mode);
   gl.uniform3fv(u("u_palette"), PALETTE.flatMap(hexToRgb));
   gl.uniform3fv(u("u_base"), hexToRgb(PALETTE[0]!));
@@ -138,9 +143,45 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
     f.g.append("g").attr("class", "sv-brush").call(b);
   }
 
+  /** The same two passes as the shader: unselected rows in grey, then selected ones. */
+  const vector = () => {
+    if (table.rows > VECTOR_POINTS) return undefined;
+    const s = engine.state;
+    const content = document.createElementNS(SVG_NS, "g");
+    const fillOf = (i: number) =>
+      color.mode === 1 ? PALETTE[color.data[i]!]! : color.mode === 2 ? interpolateViridis(color.data[i]!) : PALETTE[0]!;
+    const passes = [
+      { sel: 0, r: Math.max(1, size * dpr - 1) / dpr / 2, alpha: Math.min(0.15, pointAlpha(s.rows)), fill: () => "rgb(140,140,153)" },
+      { sel: 1, r: (size * selectedScale(s.selectedCount, s.rows)) / 2, alpha: pointAlpha(s.selectedCount), fill: fillOf },
+    ];
+    for (const pass of passes) {
+      const groups = new Map<string, SVGGElement>();
+      for (let i = 0; i < table.rows; i++) {
+        const vx = xs.values[i]!, vy = ys.values[i]!;
+        if (s.mask[i] !== pass.sel || Number.isNaN(vx) || Number.isNaN(vy)) continue;
+        const fill = pass.fill(i);
+        let g = groups.get(fill);
+        if (!g) {
+          g = document.createElementNS(SVG_NS, "g");
+          g.setAttribute("fill", fill);
+          g.setAttribute("fill-opacity", pass.alpha.toFixed(3));
+          groups.set(fill, g);
+          content.append(g);
+        }
+        const c = document.createElementNS(SVG_NS, "circle");
+        c.setAttribute("cx", x(vx).toFixed(2));
+        c.setAttribute("cy", y(vy).toFixed(2));
+        c.setAttribute("r", pass.r.toFixed(2));
+        g.append(c);
+      }
+    }
+    return { plot: f.plot, content };
+  };
+
   return {
     el: f.root,
     update: draw,
+    vector,
     destroy: () => gl.getExtension("WEBGL_lose_context")?.loseContext(),
   };
 }

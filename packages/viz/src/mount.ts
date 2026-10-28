@@ -9,6 +9,7 @@ import { histogram } from "./views/histogram";
 import { scatter } from "./views/scatter";
 import { scatter3d } from "./views/scatter3d";
 import { STYLE } from "./style";
+import { toSVG } from "./export";
 
 export interface MountOptions {
   /** Columns for `data: { columns: "external" }`. */
@@ -42,6 +43,12 @@ export interface Handle {
   selection(): Selection;
   /** Indices (0-based, in data order) of the selected rows. */
   selectedRows(): Uint32Array;
+  /**
+   * The views as they are now, as a standalone SVG document. Text, axes, bars and 2D
+   * points (up to 50,000 rows) are vectors; density grids, larger point clouds and 3D
+   * views are embedded images at the page's pixel ratio.
+   */
+  toSVG(): string;
   destroy(): void;
 }
 
@@ -176,6 +183,14 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     engine,
     onUpdate: (l) => engine.on(l),
     selection,
+    toSVG() {
+      const vectors = new Map<Element, SVGElement>();
+      for (const p of panels) {
+        const v = p.vector?.();
+        if (v) vectors.set(v.plot, v.content);
+      }
+      return toSVG(el, vectors);
+    },
     selectedRows() {
       const m = engine.state.mask;
       const out = new Uint32Array(engine.state.selectedCount);
