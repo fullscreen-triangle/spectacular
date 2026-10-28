@@ -25,5 +25,5 @@ export const STYLE = /* css */ `
 .sv-axis-label { fill: var(--sv-fg); font-size: 11px; }
 .sv-context rect, rect.sv-context { fill: var(--sv-context); }
 .sv-focus rect { fill: var(--sv-focus); }
-.sv-brush .selection { fill: var(--sv-focus); fill-opacity: 0.12; stroke: var(--sv-focus); }
+.sv-brush .selection { fill: var(--sv-fg); fill-opacity: 0.1; stroke: var(--sv-fg); stroke-dasharray: 4 3; }
 `;
