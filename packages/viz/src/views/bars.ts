@@ -13,13 +13,18 @@ export function bars(ctx: ViewContext<BarsView>): Panel {
   const col = categorical(table, view.field);
   const group = alloc.group!;
   const f = frame(ctx, view.height ?? Math.min(420, Math.max(120, col.labels.length * 22)));
-  const labelWidth = Math.min(120, 8 + 7 * Math.max(...col.labels.map((l) => l.length)));
+  const labelWidth = Math.min(160, 8 + 7 * Math.max(...col.labels.map((l) => l.length)));
+  // Long labels keep their end: in IRIs and paths that is the part that differs.
+  const fit = Math.floor((labelWidth - 8) / 7);
+  const short = (l: string) => (l.length <= fit ? l : "…" + l.slice(l.length - fit + 1));
   f.g.attr("transform", `translate(${labelWidth},8)`);
   const w = f.w - (labelWidth - 52);
   const yb = scaleBand<number>().domain(col.labels.map((_, i) => i)).range([0, f.h]).padding(0.15);
   const x = scaleLinear().range([0, w]);
   const xAxis = f.g.append("g").attr("transform", `translate(0,${f.h})`);
-  f.g.append("g").call(axisLeft(yb).tickFormat((i) => col.labels[i]!));
+  f.g.append("g")
+    .call(axisLeft(yb).tickFormat((i) => short(col.labels[i]!)))
+    .call((a) => a.selectAll<SVGGElement, number>(".tick").append("title").text((i) => col.labels[i]!));
 
   const chosen = new Set<number>();
   const rows = f.g
