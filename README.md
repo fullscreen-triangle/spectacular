@@ -11,6 +11,18 @@ point at the exact path.
 
 ## Handing spectacular a task
 
+**AI agents in other repos: read [`spectacular-specifications.md`](spectacular-specifications.md).**
+It is the complete guide to the spec, viewer mode, validation, limits and what is not
+built yet.
+
+Put a spec and its data under `examples/local/<project>/` (gitignored), validate it,
+then open it in the viewer:
+
+```bash
+npm run validate -- examples/local/proj/x.spec.json
+npm run dev     # then http://localhost:5173/?spec=/local/proj/x.spec.json
+```
+
 ```json
 {
   "version": "spectacular/v0",
@@ -38,7 +50,8 @@ point at the exact path.
 
 `data` is `{ "url" }` (CSV, TSV or JSON rows), `{ "values": [...] }`, or
 `{ "columns": "external" }` with columns passed in by the embedding program.
-`examples/synthetic.spec.json` is a complete spec. `validate(spec)` returns
+`examples/synthetic.spec.json` and `examples/lorenz.spec.json` (with `lorenz.csv`) are
+complete specs. `validate(spec)` returns
 `[{ path, message }]`, for example `/views/2/field: histogram.field needs a quantitative
 field; "species" is nominal`.
 
