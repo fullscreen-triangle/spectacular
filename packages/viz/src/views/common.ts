@@ -18,6 +18,8 @@ export interface Panel {
 export interface Allocation {
   dims: Record<string, number>;
   group?: number;
+  /** For edge views: the pairs their one dimension filters on. */
+  pairs?: Pairs;
 }
 
 export interface ViewContext<V extends View = View> {
@@ -165,3 +167,118 @@ vec3 pointColor(float c) {
   if (u_colorMode == 2) return viridis(c);
   return u_base;
 }`;
+
+/**
+ * The edges of an edge view: every distinct (source, target) pair, the nodes they join,
+ * and for each row the code of its pair. A pair is the unit an edge view filters on.
+ */
+export interface Pairs {
+  nodes: string[];
+  /** For each pair code, its [source node, target node]. */
+  pairs: [number, number][];
+  /** For each row, its pair code. */
+  codes: Uint32Array;
+  /** "source → target", per pair code, for selections reported in data terms. */
+  labels: string[];
+}
+
+export function edgePairs(table: Table, source: string, target: string): Pairs {
+  const s = categorical(table, source);
+  const t = categorical(table, target);
+  const nodes: string[] = [];
+  const nodeOf = new Map<string, number>();
+  const node = (label: string) => {
+    let i = nodeOf.get(label);
+    if (i === undefined) {
+      i = nodes.length;
+      nodes.push(label);
+      nodeOf.set(label, i);
+    }
+    return i;
+  };
+  const pairs: [number, number][] = [];
+  const pairOf = new Map<number, number>();
+  const codes = new Uint32Array(table.rows);
+  for (let r = 0; r < table.rows; r++) {
+    const a = node(s.labels[s.codes[r]!]!);
+    const b = node(t.labels[t.codes[r]!]!);
+    const key = a * 1_000_003 + b;
+    let k = pairOf.get(key);
+    if (k === undefined) {
+      k = pairs.length;
+      pairs.push([a, b]);
+      pairOf.set(key, k);
+    }
+    codes[r] = k;
+  }
+  return { nodes, pairs, codes, labels: pairs.map(([a, b]) => `${nodes[a]} → ${nodes[b]}`) };
+}
+
+/**
+ * The selection of an edge view: a set of pair codes. Clicking an edge toggles it;
+ * clicking a node toggles every edge that touches it (all on if any is off). The view's
+ * own group ignores this filter, so the view keeps its full shape while it filters the
+ * other views.
+ */
+export class EdgeSelection {
+  readonly chosen = new Set<number>();
+  constructor(private engine: Engine, private dim: number | undefined, private changed: () => void) {}
+  get active(): boolean {
+    return this.dim !== undefined;
+  }
+  toggle(codes: number[]) {
+    if (this.dim === undefined || codes.length === 0) return;
+    const allOn = codes.every((k) => this.chosen.has(k));
+    for (const k of codes) {
+      if (allOn) this.chosen.delete(k);
+      else this.chosen.add(k);
+    }
+    this.engine.filter(this.chosen.size ? { dim: this.dim, codes: [...this.chosen] } : { dim: this.dim, clear: true });
+    this.changed();
+  }
+  /** Shown at full strength: chosen edges, or every edge when nothing is chosen. */
+  shows(code: number): boolean {
+    return this.chosen.size === 0 || this.chosen.has(code);
+  }
+}
+
+/** Node totals from per-pair counts: rows leaving, rows arriving. */
+export function nodeTotals(p: Pairs, counts: ArrayLike<number>): { out: Float64Array; into: Float64Array } {
+  const out = new Float64Array(p.nodes.length);
+  const into = new Float64Array(p.nodes.length);
+  p.pairs.forEach(([a, b], k) => {
+    out[a]! += counts[k] ?? 0;
+    into[b]! += counts[k] ?? 0;
+  });
+  return { out, into };
+}
+
+/** Pair codes touching a node, as source, as target, or either. */
+export function incident(p: Pairs, node: number, side: "source" | "target" | "either" = "either"): number[] {
+  const out: number[] = [];
+  p.pairs.forEach(([a, b], k) => {
+    if ((side !== "target" && a === node) || (side !== "source" && b === node)) out.push(k);
+  });
+  return out;
+}
+
+/** A small tooltip that follows the pointer inside a panel. */
+export function tooltip(root: HTMLElement): { show(e: MouseEvent, text: string): void; hide(): void } {
+  const tip = document.createElement("div");
+  tip.className = "sv-tip";
+  tip.hidden = true;
+  root.style.position = "relative";
+  root.append(tip);
+  return {
+    show(e, text) {
+      const r = root.getBoundingClientRect();
+      tip.textContent = text;
+      tip.hidden = false;
+      tip.style.left = `${Math.min(e.clientX - r.left + 12, r.width - 220)}px`;
+      tip.style.top = `${e.clientY - r.top + 12}px`;
+    },
+    hide() {
+      tip.hidden = true;
+    },
+  };
+}

@@ -341,6 +341,151 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "source",
+              "target"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "arc"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "select",
+                  "none"
+                ]
+              },
+              "order": {
+                "enum": [
+                  "count",
+                  "name",
+                  "data"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "source",
+              "target"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "sankey"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "select",
+                  "none"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "source",
+              "target"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "network3d"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "select",
+                  "none"
+                ]
+              }
+            },
+            "additionalProperties": false
           }
         ]
       }

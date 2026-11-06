@@ -56,6 +56,9 @@ caller in standard-library Python.
 | `bars` | one nominal `field` | click to toggle categories (`"select"`) |
 | `density` | `x`, `y`, binned on a grid | — |
 | `scatter3d` | `x`, `y`, `z`, optional `color` | — (shows other views' filters) |
+| `arc` | edges: nominal `source` and `target` | click an arc or a node (`"select"`) |
+| `sankey` | edges: nominal `source` and `target` | click a flow or a node (`"select"`) |
+| `network3d` | edges: nominal `source` and `target`, laid out in 3D | click a node (`"select"`) |
 
 `data` is `{ "url" }` (CSV, TSV or JSON rows), `{ "values": [...] }`, or
 `{ "columns": "external" }` with columns passed in by the embedding program. With `url`,

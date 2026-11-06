@@ -2,10 +2,13 @@ import { fieldTypes, loadTable, type ExternalColumn, type Table } from "./data";
 import { Engine, type EngineState } from "./engine/client";
 import type { DimInit, GroupInit } from "./engine/protocol";
 import { SpecError, validate, type Spec, type View } from "./spec";
+import { arc } from "./views/arc";
 import { bars } from "./views/bars";
-import type { Allocation, Panel, ViewContext } from "./views/common";
+import { edgePairs, type Allocation, type Panel, type ViewContext } from "./views/common";
 import { density } from "./views/density";
 import { histogram } from "./views/histogram";
+import { network3d } from "./views/network3d";
+import { sankey } from "./views/sankey";
 import { scatter } from "./views/scatter";
 import { scatter3d } from "./views/scatter3d";
 import { STYLE } from "./style";
@@ -95,6 +98,17 @@ export function plan(spec: Spec, table: Table): Plan {
       }
       case "scatter3d":
         return { dims: {} };
+      case "arc":
+      case "sankey":
+      case "network3d": {
+        // One dimension over (source, target) pairs: a node's edges are a set of
+        // pair codes, so selecting a node is one categorical filter.
+        const pairs = edgePairs(table, v.source, v.target);
+        dims.push({ kind: "categorical", codes: pairs.codes, cardinality: Math.max(1, pairs.pairs.length) });
+        const d = dims.length - 1;
+        groups.push({ kind: "category", dim: d });
+        return { dims: { [`${v.source} → ${v.target}`]: d }, group: groups.length - 1, pairs };
+      }
     }
   });
   if (dims.length > 32)
@@ -103,7 +117,7 @@ export function plan(spec: Spec, table: Table): Plan {
 }
 
 const BUILDERS: { [K in View["type"]]: (ctx: ViewContext<Extract<View, { type: K }>>) => Panel } = {
-  scatter, histogram, bars, density, scatter3d,
+  scatter, histogram, bars, density, scatter3d, arc, sankey, network3d,
 };
 
 let styled = false;
@@ -163,18 +177,20 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     report(s);
   });
 
-  const owners = new Map<number, { view: string; field: string }>();
+  const owners = new Map<number, { view: string; field: string; labels?: string[] }>();
   allocations.forEach((a, i) => {
-    for (const [field, d] of Object.entries(a.dims)) owners.set(d, { view: spec.views[i]!.id, field });
+    for (const [field, d] of Object.entries(a.dims)) owners.set(d, { view: spec.views[i]!.id, field, labels: a.pairs?.labels });
   });
   const selection = (): Selection => ({
     selected: engine.state.selectedCount,
     rows: engine.state.rows,
     filters: [...engine.filters].sort(([a], [b]) => a - b).map(([d, op]): Filter => {
-      const owner = owners.get(d)!;
-      if ("range" in op) return { ...owner, range: [Math.min(...op.range), Math.max(...op.range)] };
-      const c = table.columns.get(owner.field)!;
-      return { ...owner, values: "codes" in op && c.type === "nominal" ? op.codes.map((k) => c.labels[k]!) : [] };
+      const { view, field, labels } = owners.get(d)!;
+      if ("range" in op) return { view, field, range: [Math.min(...op.range), Math.max(...op.range)] };
+      const c = table.columns.get(field);
+      // Edge views filter on pairs, reported as "source → target".
+      const name = (k: number) => (c?.type === "nominal" ? c.labels[k]! : labels?.[k] ?? String(k));
+      return { view, field, values: "codes" in op ? op.codes.map(name) : [] };
     }),
   });
 

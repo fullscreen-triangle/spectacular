@@ -94,7 +94,7 @@ type each view needs. It reports every problem in one run:
 x.spec.json /views/0/field: histogram.field needs a quantitative field; "lobe" is nominal
 x.spec.json /views/1/colour: unknown property "colour"; did you mean "color"?
 x.spec.json /views/2/field: no field "nope" in the data
-x.spec.json /views/3/type: unknown view type "pie"; one of scatter, histogram, bars, density, scatter3d
+x.spec.json /views/3/type: unknown view type "pie"; one of scatter, histogram, bars, density, scatter3d, arc, sankey, network3d
 ```
 
 Exit codes: `0` all valid, `1` problems found, `2` usage or I/O error. When a spec's data
@@ -200,6 +200,7 @@ are ignored.
 | `bars` | | `field` | |
 | `density` | `x`, `y` | | |
 | `scatter3d` | `x`, `y`, `z` | | `color` |
+| `arc`, `sankey`, `network3d` | | `source`, `target` | |
 
 ### 4.5 Views
 
@@ -214,13 +215,16 @@ optional `title` (defaults to `id`), `height` (plot height in CSS pixels) and `s
 | `bars` | `field`, `brush?` | `"select"` (click a category to toggle it) or `"none"` | brush `"select"`, height 22 px per category, between 120 and 420 |
 | `density` | `x`, `y`, `bins?` (`[xBins, yBins]`) | none | bins `[128, 128]`, height 300 |
 | `scatter3d` | `x`, `y`, `z`, `color?`, `pointSize?` | none (drag to orbit, scroll to zoom) | height 360 |
+| `arc` | `source`, `target`, `order?` (`"count"`, `"name"` or `"data"`), `brush?` | `"select"` (click an arc or a node) or `"none"` | order `"count"`, brush `"select"`, height 300 |
+| `sankey` | `source`, `target`, `brush?` | `"select"` (click a flow, or a node on either side) or `"none"` | brush `"select"`, height 360 |
+| `network3d` | `source`, `target`, `brush?` | `"select"` (click a node) or `"none"`; drag to orbit, scroll to zoom | brush `"select"`, height 420 |
 
 Constraints:
 - **`bins`:** an integer from 1 to 10,000 for histograms; each of the pair an integer
   from 1 to 1,024 for density.
 - **`height`, `span` and `pointSize`:** positive numbers.
-- **Brushes:** only `scatter`, `histogram` and `bars` accept a `brush` property. On
-  any other view it is an error.
+- **Brushes:** only `scatter`, `histogram`, `bars`, `arc`, `sankey` and `network3d`
+  accept a `brush` property. On any other view it is an error.
 
 What each view draws:
 - **`scatter`:** rows that pass every brush are drawn coloured, on top of the rest in
@@ -237,6 +241,21 @@ What each view draws:
   hundreds of thousands of rows or more, where points saturate into a solid blob.
 - **`scatter3d`:** each axis is scaled separately to fill a cube, so the aspect ratio is
   **not** preserved. It shows the selection made in other views.
+- **Edge views (`arc`, `sankey`, `network3d`):** each row is one edge from `source` to
+  `target`. Rows with the same pair are one edge, weighted by how many of them pass every
+  *other* view's brush. Each edge view has one crossfilter dimension over the pairs, so
+  clicking a node selects every edge that touches it, which a filter on either field
+  alone cannot express. Selections are reported as `"source → target"` values.
+- **`arc`:** nodes on one line, ordered by the rows touching them unless `order` says
+  otherwise; every edge is an arc above the line, as thick as its rows. Light context
+  arcs show the unfiltered edges while another view filters.
+- **`sankey`:** sources on the left and targets on the right, ordered by their totals;
+  each flow is as wide as its rows. A node that is both appears on both sides. Labels
+  are shown where a node is tall enough; every node names itself on hover.
+- **`network3d`:** nodes placed by a three-dimensional force layout that starts from a
+  fixed arrangement, so the same data always gives the same picture. Nodes are sized
+  by the rows that touch them; edges fade as the filters empty them. The 24 busiest
+  nodes are labelled.
 
 **`color`:** a nominal field uses Tableau 10 by category; a quantitative field uses
 viridis over the field's extent. Without `color`, points use one colour.
@@ -244,7 +263,7 @@ viridis over the field's extent. Without `color`, points use one colour.
 ### 4.6 Limits
 
 - **32 crossfilter dimensions per spec.** A scatter with a brush uses 2, density 2,
-  histogram 1, bars 1, and scatter3d 0. The validator reports a spec that exceeds the
+  histogram 1, bars 1, arc 1, sankey 1, network3d 1, and scatter3d 0. The validator reports a spec that exceeds the
   limit.
 - **Memory.** Each dimension holds its own copy of its field: 8 bytes per row for
   numbers, 4 for category codes, plus 4 bytes per row for the sort order. On top of

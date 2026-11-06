@@ -80,7 +80,41 @@ export interface Scatter3DView extends ViewBase {
   pointSize?: number;
 }
 
-export type View = ScatterView | HistogramView | BarsView | DensityView | Scatter3DView;
+/**
+ * Views over edges: each row is one edge from `source` to `target` (two nominal fields),
+ * and edges between the same two nodes are drawn as one, weighted by how many rows it
+ * holds. Clicking an edge selects its rows; clicking a node selects every edge that
+ * touches it. Each view keeps its own full shape while it filters the others.
+ */
+interface EdgeViewBase extends ViewBase {
+  source: string;
+  target: string;
+  /** "select" toggles edges and nodes in the filter by clicking. */
+  brush?: "select" | "none";
+}
+
+/** Nodes on one line, edges as arcs above it. */
+export interface ArcView extends EdgeViewBase {
+  type: "arc";
+  /** Node order along the line: by rows touching the node (default), by name, or as first seen. */
+  order?: "count" | "name" | "data";
+}
+
+/** Two columns, sources and targets, joined by flows as wide as their row counts. */
+export interface SankeyView extends EdgeViewBase {
+  type: "sankey";
+}
+
+/** Nodes placed in 3D by a force layout, edges as lines; orbitable. */
+export interface Network3DView extends EdgeViewBase {
+  type: "network3d";
+}
+
+export type View = ScatterView | HistogramView | BarsView | DensityView | Scatter3DView | ArcView | SankeyView | Network3DView;
+
+/** True for the views whose rows are edges. */
+export const isEdgeView = (v: View): v is ArcView | SankeyView | Network3DView =>
+  v.type === "arc" || v.type === "sankey" || v.type === "network3d";
 export type ViewType = View["type"];
 
 export interface FigureOutput {
@@ -115,6 +149,9 @@ const VIEW_FIELDS: Record<ViewType, { required: string[]; optional: string[] }> 
   bars: { required: ["field"], optional: [] },
   density: { required: ["x", "y"], optional: [] },
   scatter3d: { required: ["x", "y", "z"], optional: ["color"] },
+  arc: { required: ["source", "target"], optional: [] },
+  sankey: { required: ["source", "target"], optional: [] },
+  network3d: { required: ["source", "target"], optional: [] },
 };
 
 const NEEDS: Record<ViewType, Record<string, FieldType | undefined>> = {
@@ -123,6 +160,9 @@ const NEEDS: Record<ViewType, Record<string, FieldType | undefined>> = {
   bars: { field: "nominal" },
   density: { x: "quantitative", y: "quantitative" },
   scatter3d: { x: "quantitative", y: "quantitative", z: "quantitative", color: undefined },
+  arc: { source: "nominal", target: "nominal" },
+  sankey: { source: "nominal", target: "nominal" },
+  network3d: { source: "nominal", target: "nominal" },
 };
 
 const BRUSHES: Record<ViewType, string[]> = {
@@ -131,6 +171,9 @@ const BRUSHES: Record<ViewType, string[]> = {
   bars: ["select", "none"],
   density: [],
   scatter3d: [],
+  arc: ["select", "none"],
+  sankey: ["select", "none"],
+  network3d: ["select", "none"],
 };
 
 const COMMON_VIEW_KEYS = ["id", "type", "title", "height", "span"];
@@ -140,6 +183,9 @@ const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
   bars: ["brush"],
   density: ["bins"],
   scatter3d: ["pointSize"],
+  arc: ["brush", "order"],
+  sankey: ["brush"],
+  network3d: ["brush"],
 };
 const TOP_KEYS = ["$schema", "version", "title", "description", "data", "fields", "views", "layout", "output"];
 const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], columns: ["columns"] };
@@ -185,6 +231,7 @@ export function dimensionsNeeded(view: View): number {
     case "histogram": case "bars": return 1;
     case "density": return 2;
     case "scatter3d": return 0;
+    case "arc": case "sankey": case "network3d": return 1;
   }
 }
 
@@ -283,6 +330,8 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
         : Number.isInteger(v.bins) && (v.bins as number) > 0 && (v.bins as number) <= 10_000;
       if (!ok) bad(`${at}/bins`, type === "density" ? "[xBins, yBins], integers in 1..1024" : "an integer in 1..10000");
     }
+    if (v.order !== undefined && !["count", "name", "data"].includes(v.order as string))
+      bad(`${at}/order`, "one of count, name, data");
     for (const key of ["height", "span", "pointSize"] as const)
       if (v[key] !== undefined && !(typeof v[key] === "number" && (v[key] as number) > 0)) bad(`${at}/${key}`, "must be a positive number");
   });
@@ -306,7 +355,7 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
   const views = spec.views.filter((v: unknown): v is View => isObject(v) && (v.type as string) in VIEW_FIELDS);
   const dims = views.reduce((n: number, v: View) => n + dimensionsNeeded(v), 0);
   if (dims > MAX_DIMENSIONS)
-    bad("/views", `these views need ${dims} crossfilter dimensions; the limit is ${MAX_DIMENSIONS} (scatter with brush 2, density 2, histogram 1, bars 1, scatter3d 0)`);
+    bad("/views", `these views need ${dims} crossfilter dimensions; the limit is ${MAX_DIMENSIONS} (scatter with brush 2, density 2, histogram 1, bars 1, arc 1, sankey 1, network3d 1, scatter3d 0)`);
 
   const figure = isObject(spec.output) ? spec.output.figure : undefined;
   if (figure !== undefined) {
@@ -336,6 +385,7 @@ export function jsonSchema(): Record<string, unknown> {
     brush: {},
     pointSize: positive,
     bins: { type: "integer", minimum: 1, maximum: 10_000 },
+    order: { enum: ["count", "name", "data"] },
   };
   const view = (type: ViewType) => {
     const { required, optional } = VIEW_FIELDS[type];
