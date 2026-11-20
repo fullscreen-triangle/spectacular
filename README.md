@@ -9,6 +9,26 @@ file naming the data, the fields and the views. A script, a build step or a mode
 write one. The renderer is deterministic, and it rejects an invalid spec with errors that
 point at the exact path.
 
+## In Jupyter and Python
+
+```python
+import spectacular as sp
+
+w = sp.view(spec, data=df)        # linked views in the notebook cell
+w.selection                       # what you brushed, in data terms
+w.selected_data()                 # ...and as the rows of df
+w.save_svg("brushed.svg")         # what the view shows now
+
+sp.save_html(spec, "views.html", data=df)   # the same views as one offline page
+sp.render(spec, "fig.pdf", data=df)         # a figure at print size
+```
+
+`data=` takes a pandas or polars DataFrame, a dict of columns or a list of rows; the
+columns travel to the browser as binary arrays, not CSV. The package lives in
+[`python/`](python/README.md), and
+[`examples/notebooks/spectacular-in-jupyter.ipynb`](examples/notebooks/spectacular-in-jupyter.ipynb)
+walks through it. The views take the notebook's theme, light or dark.
+
 ## Handing spectacular a task
 
 **Programs and AI agents in other repos: read
@@ -65,7 +85,8 @@ caller in standard-library Python.
 `format` overrides the extension and `pointer` (a JSON Pointer such as `"/executions"`)
 reads rows nested inside a JSON or JSON for Linked Data (JSON-LD) document.
 `examples/synthetic.spec.json` and `examples/lorenz.spec.json` (with `lorenz.csv`) are
-complete specs. `validate(spec)` returns
+complete specs. `"theme"` is `"auto"` (follow the page), `"light"`, `"dark"` or `"paper"`
+(white, borderless, for print). `validate(spec)` returns
 `[{ path, message }]`, for example `/views/2/field: histogram.field needs a quantitative
 field; "species" is nominal`.
 
@@ -81,16 +102,19 @@ handle.destroy();
 
 ## Develop
 
-Needs Rust with the `wasm32-unknown-unknown` target, `wasm-pack`, and Node 20+.
+Needs Rust with the `wasm32-unknown-unknown` target, `wasm-pack`, Node 22.18+, and Python
+3.9+ for the Python package.
 
 ```bash
 npm run build:wasm          # crates/chigutiro-wasm -> packages/chigutiro-wasm (generated; first)
 npm install
-npm run build               # the viewer that render and serve load (packages/viz/dist)
+npm run build               # the viewer (packages/viz/dist) and the notebook runtime (python/)
 npm run dev                 # demo at http://localhost:5173/?rows=2000000
 npm test                    # Rust tests, WASM-vs-JS check, spec/data/planner tests
 npm run test:e2e -w @spectacular/viz   # headless Chromium: brushes, clicks, pixels
 npm run test:cli            # the command as a program uses it: exit codes, render, serve
+npm run test:python         # the Python package (pip install -e "python[test]" first)
+SPECTACULAR_PYTHON=<python with jupyterlab> npm run test:jupyter   # a real JupyterLab: view, brush, read back
 cargo run --release -p chigutiro --example bench   # 10M-row timings
 ```
 
@@ -120,11 +144,14 @@ or the whole mask when that is smaller, and the GPU gets one byte per point per 
 ## Status
 
 Working: the crossfilter and its WebAssembly (WASM) bindings, the spec, validator and
-JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are five view types:
-WebGL2 scatter, three.js 3D scatter, density grid, histogram and bars. The `spectacular`
-command validates specs, renders SVG, PDF and PNG figures at physical size, and serves a
-viewer that reports selections. The
-demo and end-to-end browser tests run against the production build.
+JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are eight view types:
+WebGL2 scatter, three.js 3D scatter, density grid, histogram and bars, and the arc, sankey
+and network3d edge views. Axes have gridlines and readable tick labels, colour has a key,
+and four themes cover the web, dark pages and print. The `spectacular` command validates
+specs, renders SVG, PDF and PNG figures at physical size, and serves a viewer that
+reports selections. The Python package shows the views in Jupyter, with selections
+readable from Python, and writes offline pages and figures. The demo and end-to-end
+browser tests run against the production build, and a JupyterLab test drives a notebook.
 
 Next:
 - Rendering a brushed state from the command line.

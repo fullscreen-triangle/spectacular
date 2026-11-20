@@ -10,7 +10,8 @@ If this file and the code disagree, the code wins: `packages/viz/src/spec.ts` is
 contract, and `spectacular.schema.json` is generated from it.
 
 **Programs** need §2 and §8: one command-line tool, JSON in and out, fixed exit codes.
-They never link against spectacular's code.
+They never link against spectacular's code. **Python programs and Jupyter notebooks**
+import the `spectacular` package instead (§8.6).
 
 ## 1. What it is
 
@@ -37,6 +38,7 @@ categories. It also draws the same views to an SVG, PDF or PNG file for a paper 
 | You have | Do this |
 |---|---|
 | A program in any language that writes a spec and a data file | The **`spectacular` command**, §8: `validate`, `render`, `serve`. |
+| Python: a Jupyter notebook, a script, a pipeline step | **`import spectacular`**, §8.6: views in the notebook, selections back in Python. |
 | A spec plus a data file, and a person who wants to look | `spectacular serve <spec>`, §8.4, or the dev server, §2.1. |
 | A TypeScript or JavaScript web app | **Embed** with `mount()`, §7. |
 | Only a spec to check | `spectacular validate <spec>`, §2.2. |
@@ -144,6 +146,7 @@ data.
 | `$schema` | string | no | Ignored by the renderer. Point it at `spectacular.schema.json` for editor checking. |
 | `title` | string | no | Heading above the views. |
 | `description` | string | no | Not displayed; use it for provenance. |
+| `theme` | `"auto"` \| `"light"` \| `"dark"` \| `"paper"` | no | Default `"auto"`: follow the page's colour scheme (in a notebook, the notebook's theme). `"paper"` is for print: white, no panel borders, darker axes. |
 | `data` | object | **yes** | §4.2. |
 | `fields` | object | no | Field types and axis titles, §4.3. |
 | `views` | array | **yes** | At least one view, §4.5. |
@@ -258,7 +261,14 @@ What each view draws:
   nodes are labelled.
 
 **`color`:** a nominal field uses Tableau 10 by category; a quantitative field uses
-viridis over the field's extent. Without `color`, points use one colour.
+viridis over the field's extent. Without `color`, points use one colour. A key under the
+view's title names the colours: swatches for up to 12 categories (then "+N more"), or the
+viridis ramp between the field's minimum and maximum. A density view's key shows its
+inferno ramp from 1 to the fullest bin's count.
+
+**Axes.** Every 2D view has light gridlines under its data, tick labels sized to read
+(integers without decimals, values from 10,000 up as 12k or 3.4M), and axis titles
+centred along each axis. Titles come from `fields.<name>.title`, else the field name.
 
 ### 4.6 Limits
 
@@ -289,6 +299,10 @@ The numbers you read back mean the following:
   filter.
 - **Updates are coalesced.** While the worker is busy, newer brush positions replace
   older ones, so a fast drag never queues stale work.
+- **Views follow their container's width.** When it changes by 20 px or more (a resized
+  window, a notebook laying out its output), the views are drawn again for the new width
+  and **every brush is cleared**. A program reading selections then sees one with no
+  filters.
 
 Measured cost, 10 million rows: about 7–9 ms per brush step while dragging, and about
 150–250 ms when a change moves most of the table, such as clearing a narrow filter. The
@@ -477,6 +491,58 @@ In this repository's runs, one category filter on 1M rows took 42–388 ms in he
 Chromium against 12–18 ms in Node. For timings, run `npm run test:wasm` or
 `cargo run --release -p chigutiro --example bench`.
 
+### 8.6 From Python and Jupyter
+
+The `spectacular` Python package (in `python/`) shows the views in a notebook and reads
+the brushes back into Python. Install it from the checkout after `npm run build`:
+`pip install -e "python[notebook]"`.
+
+```python
+import spectacular as sp
+
+w = sp.view(spec, data=df)    # as a cell's last expression, the views appear below it
+w.selection                   # {"selected": 412, "rows": 2400, "filters": [...]}, as in §8.4
+w.selected_rows               # numpy array of row indices into df
+w.selected_data()             # df.iloc[w.selected_rows]
+w.on_select(callback)         # called with the selection after each brush settles
+w.update(spec=new_spec)       # redraw with a new spec or data= (brushes are cleared)
+w.save_svg("now.svg")         # what the view shows now, brushes included (§8.3's SVG)
+w.problems                    # the spec's problems, as the page reported them
+
+sp.save_html(spec, "views.html", data=df)   # one offline page; nothing is reported back
+sp.render(spec, "fig.pdf", data=df)         # §8.3, through the command (needs Node)
+sp.validate(spec, data=df)                  # [{"path", "message"}], through the command
+sp.schema()                                 # the JSON Schema of §8.2
+```
+
+- **`spec`** is a dict, a path to a spec file, or JSON text. A program can build it from
+  its own rules; nothing in it is Python-specific.
+- **`data=`** is a pandas or polars DataFrame, a dict of columns, a list of row dicts, or
+  a numpy record array. It replaces the spec's `data`. Only the fields the views name and
+  the ones `fields` declares are sent, as binary columns: integer and float columns as
+  float64, everything else as categories (booleans as `"true"`/`"false"`, missing values
+  as NaN or `""`). A type declared in `fields` wins. Dates are refused; convert them to
+  numbers first.
+- **Without `data=`**, the spec's own data is used. A local `data.url` is read from disk
+  (relative to the spec file, or the working directory for a dict or text) and sent to
+  the page, so no server is involved.
+- **Problems** show in the cell, each with its path, and in `w.problems`. A field the
+  data lacks is reported as `no field "..." in the data`, as everywhere else.
+- **Selections** arrive 150 ms after a brush settles, while the kernel is idle: read them
+  in a later cell, or in `on_select`. `track_rows=False` stops sending row indices,
+  for tables of millions of rows where only the filters are wanted.
+- **`save_svg`** is answered by the page, so the view must be displayed. The file is
+  written after the cell finishes; `w.saved` lists the files written.
+- **Without anywidget**, `sp.view` returns the same views as an iframe page: brushing
+  works, nothing comes back to Python.
+- **Theme:** the views follow JupyterLab's, Visual Studio Code's and Colab's light or dark theme
+  unless the spec sets one.
+
+The runtime is one JavaScript file in the package (about 1 MB, with the crossfilter's
+WASM inside). If a front end refuses Web Workers, the crossfilter runs on the page's own
+thread instead: the same answers, with slower brushing at millions of rows.
+`examples/notebooks/spectacular-in-jupyter.ipynb` walks through all of it.
+
 ## 9. Not supported yet
 
 Do not write specs that rely on these; the validator will reject most of them:
@@ -491,7 +557,7 @@ Do not write specs that rely on these; the validator will reject most of them:
   datasets. Compute them in your repo first and write the result to the data file.
 - **Initial brushes in the spec**, or a programmatic brush API.
 - **Display options:** pan or zoom, log scales, explicit axis domains, histogram ranges,
-  colour legends and tooltips.
+  and tooltips outside the edge views.
 - **More selection:** lasso, brushing in 3D, and brushing a density view.
 
 ## 10. Checklist before you hand a spec over
