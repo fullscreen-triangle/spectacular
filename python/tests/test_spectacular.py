@@ -165,12 +165,41 @@ def test_a_list_of_charts_is_a_description_too():
 
 
 def test_description_problems_show_where_the_charts_would_be():
-    w = sp.view({"charts": [{"x": "od60"}, {"x": "medium", "y": "od600"}, {"x": "od600", "colr": "red"}]}, PLATE)
+    w = sp.view({"charts": [{"x": "od60"}, {"x": "medium", "color": "od600"}, {"x": "od600", "colr": "red"}]}, PLATE)
     assert w.spec == {} and w.columns is None
-    assert [p["path"] for p in w.problems] == ["/charts/0/x", "/charts/1", "/charts/2/colr"]
+    assert [p["path"] for p in w.problems] == ["/charts/0/x", "/charts/1/color", "/charts/2/colr"]
     assert w.problems[0]["message"] == 'no column "od60"; did you mean "od600"?'
     w.update(spec={"x": "od600"})
     assert w.problems == [] and w.spec["views"][0]["type"] == "histogram"
+
+
+BUNDLE = REPO / "examples" / "bundle.desc.json"
+
+
+def test_the_bundle_description_compiles_to_the_newer_views():
+    rows = json.loads((REPO / "examples" / "bundle.rows.json").read_text())
+    w = sp.view(BUNDLE, rows)
+    assert w.problems == []
+    types = [v["type"] for v in w.spec["views"]]
+    assert types == ["bars", "sankey", "strip", "matrix", "interval", "scatter", "bars"]
+    assert w.spec["key"] == "row" and w.spec["views"][0]["color"] == "outcome"
+    assert w.spec["fields"]["way"]["domain"][:3] == ["stated", "supplied", "in-place"]
+    assert w.spec["fields"]["outcome"]["palette"]["published"] == "#1baf7a"
+    # The key travels as a column, so selections can be named by it.
+    assert "row" in w.columns
+
+
+def test_selecting_by_key_goes_to_the_page_and_keys_come_back(monkeypatch):
+    w = sp.View({"key": "id", "x": "v"}, {"id": ["a", "b", "c"], "v": [1.0, 2.0, 3.0]})
+    sent = []
+    monkeypatch.setattr(w, "send", sent.append)
+    w.select(["a", "c"])
+    w.select(None)
+    assert [m["keys"] for m in sent] == [["a", "c"], None] and all(m["type"] == "select" for m in sent)
+    w.set_state({"_keys": ["a", "c"]})
+    assert w.selected_keys == ["a", "c"]
+    with pytest.raises(ValueError, match="key"):
+        sp.View({"x": "v"}, {"v": [1.0]}).select(["a"])
 
 
 def test_the_cell_magic_takes_only_a_description():

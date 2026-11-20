@@ -74,6 +74,7 @@ if anywidget is not None:
         problems = traitlets.List().tag(sync=True)
         # Binary state arrives from the page as a memoryview; Bytes takes only bytes.
         _rows = traitlets.Bytes(b"").tag(sync=True, from_json=lambda value, _widget: bytes(value or b""))
+        _keys = traitlets.List().tag(sync=True)
 
         def __init__(self, spec: SpecLike, data: Any = None, *, track_rows: bool = True, **kwargs: Any):
             s, columns, file, problems = _load(spec, data)
@@ -105,6 +106,20 @@ if anywidget is not None:
             out = array.array("I" if array.array("I").itemsize == 4 else "L")
             out.frombytes(self._rows)
             return out.tolist()
+
+        @property
+        def selected_keys(self) -> List[str]:
+            """The `key` values of the selected rows (the description's or spec's `key`);
+            [] without one. Empty until the view is drawn."""
+            return list(self._keys)
+
+        def select(self, keys: Optional[Any]) -> None:
+            """Selects rows by their `key` values, as one more filter on top of the brushes,
+            so rows chosen elsewhere show in every chart; `None` clears it. Needs a `key`.
+            The page answers after this cell finishes; `selection` then includes it."""
+            if not (self.spec or {}).get("key"):
+                raise ValueError("select() needs a description or spec with a \"key\" column")
+            self.send({"type": "select", "id": uuid.uuid4().hex, "keys": None if keys is None else [str(k) for k in keys]})
 
         def selected_data(self) -> Any:
             """The selected rows of the data this view was given, in its own type."""
