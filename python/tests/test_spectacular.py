@@ -90,9 +90,10 @@ def test_data_replaces_the_spec_data_and_a_local_url_travels_as_bytes(tmp_path):
     spec, columns, file = payload(tmp_path / "s.json")
     assert columns is None and file == {"name": "d.csv", "bytes": b"v\n1\n2\n"}
 
-    with pytest.raises(FileNotFoundError, match="nope.csv"):
-        payload({"data": {"url": "nope.csv"}, "views": []})
-    assert payload({"data": {"url": "https://example.org/x.csv"}, "views": []})[2] is None
+    with pytest.raises(sp.SpectacularError, match="nope.csv"):
+        payload({"data": "nope.csv", "x": "v"})
+    remote = payload(spec_for({"id": "h", "type": "histogram", "field": "v"}, data={"url": "https://example.org/x.csv"}))
+    assert remote[1] is None and remote[2] is None
 
 
 def test_a_page_embeds_the_runtime_and_survives_script_like_labels():
@@ -131,18 +132,83 @@ def test_save_svg_writes_the_file_when_the_page_answers(tmp_path, monkeypatch):
     assert (tmp_path / "fig.svg").read_text() == "<svg/>" and w.saved == [tmp_path / "fig.svg"]
 
 
-needs_node = pytest.mark.skipif(shutil.which("node") is None or not (REPO / "packages/viz/dist/index.html").exists(),
-                                reason="needs Node and the built viewer")
+PLATE = pd.DataFrame({
+    "Time (h)": [0.0, 0.5, 1.0, 1.5],
+    "od600": [0.05, 0.1, 0.2, 0.4],
+    "medium": ["rich", "minimal", "rich", "minimal"],
+    "well": [1, 2, 1, 2],
+})
 
 
-@needs_node
+def test_a_description_becomes_linked_views():
+    w = sp.view({
+        "title": "Plate",
+        "categorical": ["well"],
+        "labels": {"od600": "OD600"},
+        "charts": [
+            {"X axis": "time h", "y-axis": "OD600", "Colour": "medium", "palette": ["teal", "orange"]},
+            {"x": "od600", "color": "tomato"},
+            {"x": "well"},
+        ],
+    }, PLATE)
+    views = w.spec["views"]
+    assert [v["type"] for v in views] == ["scatter", "histogram", "bars"]
+    assert views[0]["x"] == "Time (h)" and views[0]["color"] == "medium" and views[0]["palette"] == ["teal", "orange"]
+    assert views[1]["fill"] == "tomato" and views[1]["title"] == "OD600"
+    assert w.spec["fields"]["well"]["type"] == "nominal" and w.columns["well"]["type"] == "nominal"
+    assert w.problems == [] and sp.chart is sp.view
+
+
+def test_a_list_of_charts_is_a_description_too():
+    w = sp.view([{"x": "od600"}, {"x": "medium"}], PLATE)
+    assert [v["type"] for v in w.spec["views"]] == ["histogram", "bars"]
+
+
+def test_description_problems_show_where_the_charts_would_be():
+    w = sp.view({"charts": [{"x": "od60"}, {"x": "medium", "y": "od600"}, {"x": "od600", "colr": "red"}]}, PLATE)
+    assert w.spec == {} and w.columns is None
+    assert [p["path"] for p in w.problems] == ["/charts/0/x", "/charts/1", "/charts/2/colr"]
+    assert w.problems[0]["message"] == 'no column "od60"; did you mean "od600"?'
+    w.update(spec={"x": "od600"})
+    assert w.problems == [] and w.spec["views"][0]["type"] == "histogram"
+
+
+def test_the_cell_magic_takes_only_a_description():
+    from IPython.core.interactiveshell import InteractiveShell
+
+    shell = InteractiveShell.instance()
+    sp.load_ipython_extension(shell)
+    shell.user_ns["plate"] = PLATE
+    w = shell.run_cell_magic("spectacular", "plate --as views", '{"x-axis": "time h", "y-axis": "od600"}')
+    assert shell.user_ns["views"] is w and w.spec["views"][0]["type"] == "scatter"
+    # Python's literal syntax works too, and the data can be any expression.
+    w = shell.run_cell_magic("spectacular", "plate[plate.well == 1]", "{'x': 'od600', 'color': 'teal',}")
+    assert w.spec["views"][0]["fill"] == "teal" and len(w._data) == 2
+    with pytest.raises(ValueError, match="not a JSON description"):
+        shell.run_cell_magic("spectacular", "plate", '{"x": }')
+
+
 def test_validate_reports_problems_against_the_data():
     problems = sp.validate(spec_for({"id": "h", "type": "histogram", "field": "k"}), {"k": ["a", "b"]})
     assert problems == [{"path": "/views/0/field", "message": 'histogram.field needs a quantitative field; "k" is nominal'}]
     assert sp.validate(LORENZ) == []
 
 
-@needs_node
+def test_validate_speaks_in_the_description_s_own_paths():
+    assert sp.validate({"charts": [{"x-axis": "nope"}]}, PLATE) == [
+        {"path": "/charts/0/x-axis", "message": 'no column "nope"; the data has Time (h), od600, medium, well'}
+    ]
+
+
+def _can_render():
+    try:
+        import playwright.sync_api  # noqa: F401
+        return True
+    except ImportError:
+        return shutil.which("node") is not None and (REPO / "packages/viz/dist/index.html").exists()
+
+
+@pytest.mark.skipif(not _can_render(), reason="needs Playwright for Python, or Node and the built viewer")
 def test_render_draws_a_figure_from_a_dataframe(tmp_path):
     df = pd.DataFrame({"well": [1, 2, 3, 1], "od": [0.1, 0.4, 0.9, 0.2]})
     out = sp.render(spec_for({"id": "s", "type": "scatter", "x": "od", "y": "od", "color": "well"},
@@ -152,3 +218,14 @@ def test_render_draws_a_figure_from_a_dataframe(tmp_path):
     with pytest.raises(sp.SpectacularError) as err:
         sp.render(spec_for({"id": "h", "type": "histogram", "field": "nope"}), tmp_path / "x.png", df)
     assert err.value.exit == 1 and err.value.problems[0]["path"] == "/views/0/field"
+
+
+@pytest.mark.skipif(not _can_render(), reason="needs Playwright for Python, or Node and the built viewer")
+def test_render_works_where_an_event_loop_runs(tmp_path):
+    # A Jupyter kernel runs an asyncio loop; rendering must not depend on there being none.
+    import asyncio
+
+    async def in_a_kernel():
+        return sp.render({"x": "od600"}, tmp_path / "loop.svg", PLATE)
+
+    assert asyncio.run(in_a_kernel()).read_text().startswith("<?xml")

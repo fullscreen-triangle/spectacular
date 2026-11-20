@@ -1,6 +1,7 @@
 // SPECTACULAR_PYTHON=<python with jupyterlab, anywidget, pandas and spectacular> node python/tests/jupyter.mjs [shots-dir]
-// A real JupyterLab: run a cell that shows views, brush them in the browser, then run
-// cells that read the selection back in Python and save an SVG.
+// A real JupyterLab: a cell that is only a JSON description (%%spectacular) shows linked
+// views; brush them in the browser, then run cells that read the selection back in
+// Python and save an SVG; a misspelt column shows its problem in the cell.
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,13 +35,16 @@ writeFileSync(join(dir, "demo.ipynb"), JSON.stringify({
       "rng = np.random.default_rng(1)\n",
       "n = 20_000\n",
       "df = pd.DataFrame({'x': rng.normal(size=n), 'y': rng.normal(size=n), 'group': rng.choice(['a', 'b', 'c'], n)})\n",
-      "df['r'] = np.hypot(df.x, df.y)\n",
-      "spec = {'title': 'From a notebook', 'layout': {'columns': 2}, 'views': [\n",
-      "    {'id': 'pts', 'type': 'scatter', 'x': 'x', 'y': 'y', 'color': 'group'},\n",
-      "    {'id': 'r', 'type': 'histogram', 'field': 'r', 'bins': 40},\n",
-      "    {'id': 'g', 'type': 'bars', 'field': 'group', 'span': 2}]}\n",
-      "w = sp.view(spec, data=df)\n",
-      "w",
+      "df['r'] = np.hypot(df.x, df.y)",
+    ]),
+    code([
+      "%%spectacular df --as w\n",
+      "{\"title\": \"From a notebook\", \"columns\": 2,\n",
+      " \"charts\": [\n",
+      "   {\"x-axis\": \"X\", \"y-axis\": \"Y\", \"colour\": \"group\", \"palette\": [\"teal\", \"orange\", \"crimson\"]},\n",
+      "   {\"x\": \"r\", \"bins\": 40},\n",
+      "   {\"x\": \"group\", \"wide\": true}\n",
+      " ]}",
     ]),
     code([
       "sel = w.selection\n",
@@ -49,6 +53,7 @@ writeFileSync(join(dir, "demo.ipynb"), JSON.stringify({
       "      round(sel['filters'][0]['range'][0], 6), round(sel['filters'][0]['range'][1], 6), rows['r'].min(), rows['r'].max())",
     ]),
     code(["w.save_svg('from-notebook.svg')"]),
+    code(["%%spectacular df\n", "{\"charts\": [{\"x\": \"grop\"}]}"]),
   ],
 }));
 
@@ -93,6 +98,10 @@ try {
     throw new Error(`no kernel: ${JSON.stringify(state)}\n${labLog.slice(-2000)}`);
   }
   await page.waitForFunction(() => window.__nb().context.sessionContext.session.kernel.status === "idle", null, { timeout: 120_000 });
+  // Cells marked by index, so each check looks only at its own cell's output.
+  const tag = () => page.evaluate(() => window.__nb().content.widgets.forEach((c, i) => (c.node.dataset.svCell = String(i))));
+  await tag();
+  const inCell = (i, selector) => page.locator(`[data-sv-cell="${i}"] ${selector}`);
 
   const run = async (index) => {
     await page.evaluate((i) => {
@@ -110,41 +119,50 @@ try {
   const output = (index) => page.evaluate((i) => window.__nb().content.widgets[i].node.querySelector(".jp-OutputArea")?.innerText ?? "", index);
 
   await run(0);
-  const views = page.locator(".jp-OutputArea .sv-root");
+  await run(1);
+  const views = inCell(1, ".sv-root");
   await views.waitFor({ timeout: 60_000 });
-  await page.waitForFunction(() => document.querySelector(".jp-OutputArea .sv-status")?.textContent?.includes("20"), null, { timeout: 60_000 });
-  ok(true, `the views appear in the cell's output (${await page.textContent(".jp-OutputArea .sv-status")})`);
+  await page.waitForFunction(() => document.querySelector('[data-sv-cell="1"] .sv-status')?.textContent?.includes("20"), null, { timeout: 60_000 });
+  const kinds = await inCell(1, "[data-view]").evaluateAll((els) => els.map((e) => e.dataset.view));
+  ok(kinds.join() === "y-vs-x,r,group", `a description cell shows its charts, types chosen from the columns (${kinds.join(", ")}; ${await inCell(1, ".sv-status").textContent()})`);
   ok(await views.getAttribute("data-theme") === "light", "they take the notebook's light theme");
+  const swatch = await inCell(1, '[data-view="y-vs-x"] .sv-swatch').first().evaluate((e) => getComputedStyle(e).backgroundColor);
+  ok(swatch === "rgb(0, 128, 128)", `the palette it names colours the categories (${swatch})`);
 
-  const box = await page.locator('.jp-OutputArea [data-view="r"] .sv-brush .overlay').boundingBox();
+  const box = await inCell(1, '[data-view="r"] .sv-brush .overlay').boundingBox();
   await page.mouse.move(box.x + box.width * 0.1, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2, { steps: 6 });
   await page.mouse.up();
   await page.waitForTimeout(1200); // the page publishes 150 ms after the brush settles
-  const status = await page.textContent(".jp-OutputArea .sv-status");
+  const status = await inCell(1, ".sv-status").textContent();
   const shown = Number(status.split(" ")[0].replace(/[^\d]/g, ""));
   if (shots) await page.screenshot({ path: join(shots, "jupyter-light.png"), fullPage: true });
 
-  await run(1);
-  const text = await output(1);
+  await run(2);
+  const text = await output(2);
   const [, selected, indices, sliced, view, lo, hi, min, max] = text.trim().split(/\s+/);
   ok(Number(selected) === shown && shown > 0 && shown < 20_000, `Python sees the brushed count the page shows (${selected} of 20000)`);
   ok(Number(indices) === shown && Number(sliced) === shown, "selected_rows and selected_data() hold exactly those rows");
   ok(view === "r" && +min >= +lo && +max <= +hi, `every selected row lies in the reported range (r in [${lo}, ${hi}], data ${(+min).toFixed(3)}..${(+max).toFixed(3)})`);
 
-  await run(2);
+  await run(3);
   const svgFile = join(dir, "from-notebook.svg");
   for (let i = 0; i < 40 && !existsSync(svgFile); i++) await page.waitForTimeout(250);
   const svg = existsSync(svgFile) ? readFileSync(svgFile, "utf8") : "";
   ok(svg.includes("<svg") && (svg.match(/<circle /g) ?? []).length === 20_000 && svg.includes("From a notebook"),
     "save_svg writes what the view shows: 20000 vector points and the title");
 
+  await run(4);
+  await inCell(4, ".sv-problems").waitFor({ timeout: 30_000 });
+  const problem = await inCell(4, ".sv-problems").innerText();
+  ok(problem.includes("/charts/0/x") && problem.includes('did you mean "group"'), `a misspelt column shows its problem in the cell (${problem.replace(/\s+/g, " ").trim()})`);
+
   // A dark JupyterLab gets dark views.
   await page.evaluate(() => window.jupyterapp.commands.execute("apputils:change-theme", { theme: "JupyterLab Dark" }));
   await page.waitForFunction(() => document.body.dataset.jpThemeLight === "false", null, { timeout: 30_000 });
-  await run(0);
-  await page.waitForFunction(() => document.querySelector(".jp-OutputArea .sv-root")?.dataset.theme === "dark", null, { timeout: 60_000 });
+  await run(1);
+  await page.waitForFunction(() => document.querySelector('[data-sv-cell="1"] .sv-root')?.dataset.theme === "dark", null, { timeout: 60_000 });
   ok(true, "after switching JupyterLab to dark, the views draw dark");
   if (shots) await page.screenshot({ path: join(shots, "jupyter-dark.png"), fullPage: true });
   await page.evaluate(() => window.jupyterapp.commands.execute("apputils:change-theme", { theme: "JupyterLab Light" }));

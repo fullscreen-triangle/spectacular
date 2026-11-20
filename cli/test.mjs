@@ -105,9 +105,15 @@ try {
     await page.mouse.down();
     await page.mouse.move(tb.x + tb.width * 0.3, tb.y + tb.height / 2, { steps: 5 });
     await page.mouse.up();
+    // The page publishes each settled state; under load one more can follow the first, so
+    // wait (up to 10 s) for the event that matches what the page now shows.
     let sel = await next("selection");
-    while (events.some((e) => e.event === "selection")) sel = await next("selection"); // the last one is the settled state
-    const shown = await page.evaluate(() => window.spectacular.engine.state.selectedCount);
+    let shown = await page.evaluate(() => window.spectacular.engine.state.selectedCount);
+    for (const until = Date.now() + 10_000; sel.selected !== shown && Date.now() < until; ) {
+      while (events.some((e) => e.event === "selection")) sel = await next("selection");
+      if (sel.selected !== shown) await page.waitForTimeout(250);
+      shown = await page.evaluate(() => window.spectacular.engine.state.selectedCount);
+    }
     const f = sel.filters[0];
     ok(sel.rows === 29_900 && sel.selected === shown && sel.selected > 0 && sel.selected < 29_900, `serve: selection event matches the page (${sel.selected} rows)`);
     ok(sel.filters.length === 1 && f.view === "time" && f.field === "t" && f.range[0] < f.range[1], `serve: the filter is reported in data terms (t in [${f?.range?.map((v) => v.toFixed(2))}])`);

@@ -14,7 +14,9 @@ SPEC_VERSION = "spectacular/v0"
 # The schema marks every property that names a field of the data with this description.
 _FIELD = "the name of a field in the data"
 
-SpecLike = Union[Dict[str, Any], str, "os.PathLike[str]"]
+#: A view spec or a chart description: a dict, a list of charts, a path to a JSON file,
+#: or JSON text.
+SpecLike = Union[Dict[str, Any], List[Any], str, "os.PathLike[str]"]
 
 
 def static_file(name: str) -> Path:
@@ -47,20 +49,31 @@ def field_keys() -> Dict[str, Tuple[str, ...]]:
     return out
 
 
-def load_spec(spec: SpecLike) -> Tuple[Dict[str, Any], Path]:
-    """A spec as a new dict, and the directory a relative data.url resolves against.
+def load_spec(spec: SpecLike) -> Tuple[Any, Path]:
+    """A spec or description as new data, and the directory a relative data file resolves
+    against.
 
-    `spec` is a dict, a path to a spec file, or JSON text. A dict or JSON text resolves
-    data.url against the current directory; a file, against its own directory.
+    `spec` is a dict, a list of charts, a path to a JSON file, or JSON text. A dict, list
+    or text resolves the data file against the current directory; a file, against its own.
     """
-    if isinstance(spec, dict):
+    if isinstance(spec, (dict, list)):
         return copy.deepcopy(spec), Path.cwd()
-    if isinstance(spec, str) and spec.lstrip().startswith("{"):
+    if isinstance(spec, str) and spec.lstrip()[:1] in ("{", "["):
         return json.loads(spec), Path.cwd()
     if isinstance(spec, (str, os.PathLike)):
         path = Path(spec)
         return json.loads(path.read_text("utf-8")), path.resolve().parent
     raise TypeError(f"a spec is a dict, a path to a spec file, or JSON text, not {type(spec).__name__}")
+
+
+def is_spec(value: Any) -> bool:
+    """True for a full view spec: every view has an id and a type (the native compiler's
+    test, so both sides agree on what passes through unchanged)."""
+    views = value.get("views") if isinstance(value, dict) else None
+    types = set(field_keys())
+    return bool(views) and all(
+        isinstance(v, dict) and isinstance(v.get("id"), str) and v.get("type") in types for v in views
+    )
 
 
 def fields_used(spec: Dict[str, Any]) -> List[str]:

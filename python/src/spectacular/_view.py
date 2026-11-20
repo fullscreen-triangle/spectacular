@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from ._data import payload
+from ._data import DescriptionError, payload
 from ._html import iframe, to_html
 from ._spec import SpecLike, static_file
 
@@ -27,11 +27,30 @@ class HTMLView:
     anywidget. Brushing works; the selection stays in the page."""
 
     def __init__(self, spec: SpecLike, data: Any = None, height: int = 480):
-        self.document = to_html(spec, data)
+        self.problems: List[Dict[str, str]] = []
+        self.document = ""
+        try:
+            self.document = to_html(spec, data)
+        except DescriptionError as e:
+            self.problems = e.problems
         self.height = height
 
     def _repr_html_(self) -> str:
+        if self.problems:
+            import html
+
+            items = "".join(f"<li><code>{html.escape(p['path'] or '/')}</code> {html.escape(p['message'])}</li>" for p in self.problems)
+            return f"<div><b>The chart description has {len(self.problems)} problem(s)</b><ul>{items}</ul></div>"
         return iframe(self.document, self.height)
+
+
+def _load(spec: SpecLike, data: Any) -> tuple:
+    """(spec, columns, file, problems): the problems of a description the compiler refused
+    are shown in the cell, where the views would have been."""
+    try:
+        return (*payload(spec, data), [])
+    except DescriptionError as e:
+        return {}, None, None, e.problems
 
 
 if anywidget is not None:
@@ -57,20 +76,23 @@ if anywidget is not None:
         _rows = traitlets.Bytes(b"").tag(sync=True, from_json=lambda value, _widget: bytes(value or b""))
 
         def __init__(self, spec: SpecLike, data: Any = None, *, track_rows: bool = True, **kwargs: Any):
-            s, columns, file = payload(spec, data)
-            super().__init__(spec=s, columns=columns, file=file, track_rows=track_rows, **kwargs)
+            s, columns, file, problems = _load(spec, data)
+            super().__init__(spec=s, columns=columns, file=file, problems=problems, track_rows=track_rows, **kwargs)
             self._data = data
+            self._source = spec
             self._svg: Dict[str, Path] = {}
             self.saved: List[Path] = []
             self.on_msg(self._message)
 
         def update(self, spec: Optional[SpecLike] = None, data: Any = None) -> None:
-            """Redraws with a new spec, new data, or both. Brushes are cleared."""
-            s, columns, file = payload(spec if spec is not None else self.spec, data if data is not None else self._data)
+            """Redraws with a new description or spec, new data, or both. Brushes are cleared."""
+            if spec is not None:
+                self._source = spec
             if data is not None:
                 self._data = data
+            s, columns, file, problems = _load(self._source, self._data)
             with self.hold_sync():
-                self.spec, self.columns, self.file = s, columns, file
+                self.spec, self.columns, self.file, self.problems = s, columns, file, problems
 
         @property
         def selected_rows(self) -> Any:

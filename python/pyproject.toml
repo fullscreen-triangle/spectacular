@@ -1,30 +1,43 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
 
 [project]
-name = "spectacular"
+name = "spectacular-charts"
 version = "0.2.0"
-description = "Linked 2D and 3D scientific views in Jupyter and from Python, over a WebAssembly crossfilter"
+description = "Linked, crossfiltered charts in Jupyter, described in JSON instead of plotting code"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Kundai Farai Sachikonye" }]
-# The core (HTML pages, figures through the command) needs nothing beyond the standard
-# library. Interactive views in a notebook need anywidget.
+classifiers = [
+    "Framework :: Jupyter",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+# The core (descriptions, validation, offline pages) needs only the standard library and
+# the native command this wheel carries. Views in a notebook need anywidget; figures need
+# a headless browser.
 dependencies = []
 
 [project.optional-dependencies]
 notebook = ["anywidget>=0.9"]
+render = ["playwright>=1.40"]
 test = ["pytest", "anywidget>=0.9", "numpy", "pandas"]
 
 [project.urls]
 Source = "https://github.com/fullscreen-triangle/spectacular"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/spectacular"]
-# Built by `npm run build:python` and not committed, so it must be named explicitly.
-artifacts = ["src/spectacular/static/*"]
-
-[tool.hatch.build.targets.sdist]
-artifacts = ["src/spectacular/static/*"]
+[tool.maturin]
+# The wheel carries the `spectacular` command (crates/spectacular) as a script, beside the
+# Python package and its browser runtime (built by `npm run build:python`, not committed).
+bindings = "bin"
+manifest-path = "../crates/spectacular/Cargo.toml"
+python-source = "src"
+python-packages = ["spectacular"]
+# Installed as spectacular-charts, imported as spectacular.
+module-name = "spectacular"
+include = [{ path = "src/spectacular/static/*", format = ["sdist", "wheel"] }]
+exclude = [{ path = "src/spectacular/__pycache__/*", format = ["sdist", "wheel"] }]
+strip = true
