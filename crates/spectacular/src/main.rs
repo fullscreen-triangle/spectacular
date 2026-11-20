@@ -132,23 +132,24 @@ fn spec_table(spec: &Value, base: &Path) -> Result<Option<(Table, Option<PathBuf
 }
 
 /// The fields the browser would load for `spec` from `t`, with their types: the needed
-/// fields the table has, a declared type winning over the inferred one. Like the browser,
-/// rows with no fields at all (an empty JSON list) are taken to have every field.
+/// fields the table has, a declared type winning over the inferred one.
 fn loaded(spec: &Value, t: &Table) -> Columns {
-    // As the browser does: any declared type other than "quantitative" loads as nominal,
-    // even an invalid one (which the validator reports separately).
+    // As the browser does (`declaredType` in spec.ts): any declared type other than
+    // "quantitative" loads as nominal, even an invalid one (which the validator reports);
+    // with no type, a domain or a palette makes a field nominal, and so does being the key.
+    let key = spec.get("key").and_then(Value::as_str);
     let declared = |name: &str| {
-        let t = spec.get("fields").and_then(|f| f.get(name)).and_then(|d| d.get("type")).filter(|t| !t.is_null())?;
-        Some(if t.as_str() == Some("quantitative") { FieldType::Quantitative } else { FieldType::Nominal })
+        let def = spec.get("fields").and_then(|f| f.get(name));
+        if let Some(t) = def.and_then(|d| d.get("type")).filter(|t| !t.is_null()) {
+            return Some(if t.as_str() == Some("quantitative") { FieldType::Quantitative } else { FieldType::Nominal });
+        }
+        let categorical = def.is_some_and(|d| d.get("domain").is_some() || d.get("palette").is_some());
+        (categorical || key == Some(name)).then_some(FieldType::Nominal)
     };
     needed_fields(spec)
         .into_iter()
         .filter_map(|name| {
-            let inferred = match t.columns.iter().find(|(c, _)| *c == name) {
-                Some((_, ty)) => *ty,
-                None if t.rows == 0 && !t.header => FieldType::Quantitative,
-                None => return None,
-            };
+            let inferred = t.columns.iter().find(|(c, _)| *c == name)?.1;
             let ty = declared(&name).unwrap_or(inferred);
             Some((name, ty))
         })

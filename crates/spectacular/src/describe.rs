@@ -52,6 +52,9 @@ const TOP: &[(&str, &[&str])] = &[
     ("layout", &["layout"]),
     ("labels", &["labels", "titles", "axislabels", "names"]),
     ("categorical", &["categorical", "nominal", "categories", "categoricalcolumns", "groups"]),
+    ("domains", &["domains", "domain", "levels", "categoryorder", "orders"]),
+    ("palettes", &["palettes", "fieldcolors", "fieldcolours", "categorycolors", "categorycolours"]),
+    ("key", &["key", "rowkey", "keycolumn", "idcolumn"]),
     ("figure", &["figure"]),
     ("output", &["output"]),
     ("fields", &["fields"]),
@@ -68,6 +71,8 @@ const CHART: &[(&str, &[&str])] = &[
     ("field", &["field", "column", "value", "values"]),
     ("from", &["from", "source", "start"]),
     ("to", &["to", "target", "end"]),
+    ("low", &["low", "lower", "lowerbound", "lowend", "min", "minimum"]),
+    ("high", &["high", "upper", "upperbound", "highend", "max", "maximum"]),
     ("color", &["color", "colour", "colorby", "colourby", "hue", "fill"]),
     ("palette", &["palette", "colors", "colours"]),
     ("title", &["title", "name", "label", "caption"]),
@@ -79,6 +84,7 @@ const CHART: &[(&str, &[&str])] = &[
     ("wide", &["wide", "fullwidth"]),
     ("brush", &["brush", "select", "selectable", "interactive"]),
     ("order", &["order", "sort"]),
+    ("scale", &["scale", "scales", "axis"]),
     ("id", &["id"]),
 ];
 
@@ -91,6 +97,10 @@ const CHART_TYPES: &[(&str, &[&str])] = &[
     ("arc", &["arc", "arcs", "arcdiagram"]),
     ("sankey", &["sankey", "flow", "flows"]),
     ("network3d", &["network3d", "network", "graph", "graph3d"]),
+    ("strip", &["strip", "stripplot", "jitter", "beeswarm", "swarm"]),
+    ("matrix", &["matrix", "grid", "crosstab", "contingency", "table"]),
+    ("interval", &["interval", "intervals", "range", "ranges", "errorbar", "errorbars", "forest"]),
+    ("layers", &["layers", "layered", "dag", "pipeline", "steps", "flowchart"]),
 ];
 
 fn canonical(table: &[(&'static str, &[&str])], key: &str) -> Option<&'static str> {
@@ -249,6 +259,8 @@ impl Context<'_> {
         let field = column("field", out);
         let from = column("from", out);
         let to = column("to", out);
+        let low = column("low", out);
+        let high = column("high", out);
 
         // Colour: `color` is a column to colour by, one colour, or a list of colours;
         // `palette` is a list of colours for the categories.
@@ -307,25 +319,16 @@ impl Context<'_> {
         let one_key = if field.is_some() { "field" } else if x.is_some() { "x" } else { "y" };
         let kind = match asked {
             Some(t) => t,
+            None if low.is_some() || high.is_some() => "interval",
             None if from.is_some() || to.is_some() => "sankey",
             None if x.is_some() && y.is_some() && z.is_some() => "scatter3d",
-            None if x.is_some() && y.is_some() => {
-                if quantitative(&x) && quantitative(&y) {
+            None if x.is_some() && y.is_some() => match (quantitative(&x), quantitative(&y)) {
+                (true, true) => {
                     if self.rows.is_some_and(|r| r > DENSITY_ROWS) && color_field.is_none() { "density" } else { "scatter" }
-                } else {
-                    let (cat, num) = if quantitative(&x) { (y.clone(), x.clone()) } else { (x.clone(), y.clone()) };
-                    out.push(Problem::new(
-                        at.to_string(),
-                        format!(
-                            "\"{}\" is a category and \"{}\" a number, and there is no chart for that pair yet; \
-                             use {{\"x\": \"{0}\"}} for counts per category, or colour a scatter by it",
-                            cat.unwrap_or_default(),
-                            num.unwrap_or_default()
-                        ),
-                    ));
-                    return None;
                 }
-            }
+                (false, false) => "matrix",
+                _ => "strip",
+            },
             None if one.is_some() => {
                 if quantitative(&one) { "histogram" } else { "bars" }
             }
@@ -371,8 +374,49 @@ impl Context<'_> {
                     out.push(Problem::new(at.to_string(), format!("a {kind} needs one column, as \"x\"")));
                     return None;
                 };
-                default_title = self.label(&f);
+                default_title = match (&color_field, kind) {
+                    (Some(c), "bars") => format!("{} by {}", self.label(&f), self.label(c)),
+                    _ => self.label(&f),
+                };
                 put(&mut view, &mut origin, "field", json!(f), one_key);
+            }
+            "strip" => {
+                let (Some(xx), Some(yy)) = (x.clone(), y.clone()) else {
+                    out.push(Problem::new(at.to_string(), "a strip needs a number and a category, as \"x\" and \"y\""));
+                    return None;
+                };
+                // The value runs across and the categories down, whichever way round they came.
+                let swap = !quantitative(&x) && quantitative(&y);
+                let ((value, value_key), (category, category_key)) = if swap { ((yy, "y"), (xx, "x")) } else { ((xx, "x"), (yy, "y")) };
+                default_title = format!("{} by {}", self.label(&value), self.label(&category));
+                put(&mut view, &mut origin, "x", json!(value), value_key);
+                put(&mut view, &mut origin, "y", json!(category), category_key);
+            }
+            "matrix" => {
+                let (Some(xx), Some(yy)) = (x.clone(), y.clone()) else {
+                    out.push(Problem::new(at.to_string(), "a matrix needs two categories, as \"x\" and \"y\""));
+                    return None;
+                };
+                default_title = format!("{} by {}", self.label(&yy), self.label(&xx));
+                put(&mut view, &mut origin, "x", json!(xx), "x");
+                put(&mut view, &mut origin, "y", json!(yy), "y");
+            }
+            "interval" => {
+                let (Some(l), Some(h)) = (low.clone(), high.clone()) else {
+                    out.push(Problem::new(at.to_string(), "an interval needs \"low\" and \"high\" columns"));
+                    return None;
+                };
+                put(&mut view, &mut origin, "low", json!(l), "low");
+                put(&mut view, &mut origin, "high", json!(h), "high");
+                // The bands: whichever of y, x or field names a column.
+                let band = [("y", &y), ("x", &x), ("field", &field)].into_iter().find_map(|(k, c)| c.clone().map(|c| (k, c)));
+                default_title = match &band {
+                    Some((_, b)) => format!("{} – {} by {}", self.label(&l), self.label(&h), self.label(b)),
+                    None => format!("{} – {}", self.label(&l), self.label(&h)),
+                };
+                if let Some((k, b)) = band {
+                    put(&mut view, &mut origin, "label", json!(b), k);
+                }
             }
             _ => {
                 let (Some(s), Some(t)) = (from.clone(), to.clone()) else {
@@ -389,7 +433,7 @@ impl Context<'_> {
         let palette_key = if keys.contains_key("palette") { "palette" } else { "color" };
         let colour_path = path("color");
         match kind {
-            "scatter" | "scatter3d" => {
+            "scatter" | "scatter3d" | "strip" | "interval" => {
                 if let Some(c) = color_field {
                     put(&mut view, &mut origin, "color", json!(c), "color");
                 }
@@ -400,10 +444,22 @@ impl Context<'_> {
                     put(&mut view, &mut origin, "palette", Value::Array(p), palette_key);
                 }
             }
-            "histogram" | "bars" if color_field.is_some() => {
+            "bars" if color_field.is_some() => {
+                // Bars coloured by a category are split into it.
+                let c = color_field.unwrap_or_default();
+                if ty(&Some(c.clone())) == Some(FieldType::Quantitative) {
+                    out.push(Problem::new(colour_path, format!("bars split by a column need a category; \"{c}\" is a number")));
+                    return None;
+                }
+                put(&mut view, &mut origin, "color", json!(c), "color");
+                if let Some(p) = palette {
+                    put(&mut view, &mut origin, "palette", Value::Array(p), palette_key);
+                }
+            }
+            "histogram" if color_field.is_some() => {
                 out.push(Problem::new(
                     colour_path,
-                    format!("colouring by a column (\"{}\") works on scatter and 3D charts; give a {kind} one colour instead, e.g. \"teal\"", color_field.unwrap_or_default()),
+                    format!("colouring by a column (\"{}\") works on point charts and bars; give a histogram one colour instead, e.g. \"teal\"", color_field.unwrap_or_default()),
                 ));
                 return None;
             }
@@ -438,6 +494,16 @@ impl Context<'_> {
         view.insert("title".into(), json!(title.clone().unwrap_or_else(|| default_title.clone())));
         if let Some((k, _)) = keys.get("title") {
             origin.insert("title".into(), (*k).clone());
+        }
+        if let Some((k, v)) = keys.get("scale") {
+            // "each" and the like mean one scale per band; "one" and the like a shared one.
+            let value = match v.as_str().map(norm).as_deref() {
+                Some("label" | "each" | "own" | "separate" | "perlabel" | "perband" | "band") => json!("label"),
+                Some("shared" | "one" | "common" | "same") => json!("shared"),
+                _ => (*v).clone(),
+            };
+            view.insert("scale".into(), value);
+            origin.insert("scale".into(), (*k).clone());
         }
         for (canon, spec_key) in [("bins", "bins"), ("size", "pointSize"), ("height", "height"), ("span", "span"), ("order", "order")] {
             if let Some((_, v)) = keys.get(canon) {
@@ -572,6 +638,44 @@ pub fn compile(desc: &Value, columns: Option<&Columns>, rows: Option<usize>) -> 
         }
     }
 
+    // Declared category orders and colours, by column; both make a column a category.
+    let mut declared: Vec<(String, &'static str, Value, String)> = Vec::new(); // (column, "domain" | "palette", value, path)
+    for (top, spec_key, example) in [
+        ("domains", "domain", "column name to its categories in order, e.g. {\"way\": [\"stated\", \"supplied\"]}"),
+        ("palettes", "palette", "column name to its colours, e.g. {\"outcome\": {\"published\": \"#1baf7a\"}}"),
+    ] {
+        let Some((k, v)) = tops.get(top) else { continue };
+        let Some(map) = v.as_object() else {
+            out.push(Problem::new(format!("/{k}"), example));
+            continue;
+        };
+        for (name, value) in map {
+            match lookup.resolve(name) {
+                Ok(c) => {
+                    if !categorical.contains(&c) {
+                        categorical.push(c.clone());
+                    }
+                    declared.push((c, spec_key, value.clone(), format!("/{k}/{name}")));
+                }
+                Err(m) => out.push(Problem::new(format!("/{k}/{name}"), m)),
+            }
+        }
+    }
+    let key = match tops.get("key") {
+        Some((k, Value::String(name))) => match lookup.resolve(name) {
+            Ok(c) => Some((c, format!("/{k}"))),
+            Err(m) => {
+                out.push(Problem::new(format!("/{k}"), m));
+                None
+            }
+        },
+        Some((k, _)) => {
+            out.push(Problem::new(format!("/{k}"), "the name of the column whose values identify rows"));
+            None
+        }
+        None => None,
+    };
+
     let ctx = Context { lookup, categorical, labels, rows };
     let mut built = Vec::new();
     for (chart, at) in &charts {
@@ -586,19 +690,15 @@ pub fn compile(desc: &Value, columns: Option<&Columns>, rows: Option<usize>) -> 
         return Compiled { spec: None, problems: out };
     }
 
-    // A palette given for a column colours that column's categories everywhere: bar charts
-    // of a column some chart colours by take its palette, unless they name their own.
-    let mut palettes: HashMap<String, Value> = HashMap::new();
-    for (b, _) in &built {
-        if let (Some(Value::String(c)), Some(p)) = (b.view.get("color"), b.view.get("palette")) {
-            palettes.entry(c.clone()).or_insert_with(|| p.clone());
-        }
-    }
-    for (b, _) in built.iter_mut() {
-        if b.view["type"] == "bars" && !b.view.contains_key("palette") {
-            if let Some(p) = b.view.get("field").and_then(Value::as_str).and_then(|f| palettes.get(f)) {
-                b.view.insert("palette".into(), p.clone());
-            }
+    // A palette given with a category to colour by becomes that column's own (unless
+    // `palettes` names one), so every chart of the column shows the same colours: the
+    // bars, a scatter's key, a sankey's nodes.
+    for (b, at) in &built {
+        let (Some(Value::String(c)), Some(p)) = (b.view.get("color"), b.view.get("palette")) else { continue };
+        let nominal = ctx.lookup.type_of(c, &ctx.categorical) == Some(FieldType::Nominal);
+        if nominal && !declared.iter().any(|(d, k, _, _)| d == c && *k == "palette") {
+            let from = b.origin.get("palette").map(|k| format!("{at}/{k}")).unwrap_or_else(|| at.clone());
+            declared.push((c.clone(), "palette", p.clone(), from));
         }
     }
 
@@ -651,8 +751,19 @@ pub fn compile(desc: &Value, columns: Option<&Columns>, rows: Option<usize>) -> 
             o.insert("title".into(), json!(l));
         }
     }
+    for (c, spec_key, value, from) in &declared {
+        let entry = fields.entry(c.clone()).or_insert_with(|| json!({}));
+        if let Some(o) = entry.as_object_mut() {
+            o.insert((*spec_key).into(), value.clone());
+            back.insert(format!("/fields/{c}/{spec_key}"), from.clone());
+        }
+    }
     if !fields.is_empty() {
         spec.insert("fields".into(), Value::Object(fields));
+    }
+    if let Some((k, from)) = key {
+        spec.insert("key".into(), json!(k));
+        back.insert("/key".into(), from);
     }
     let grid = match tops.get("columns") {
         Some((k, v)) => {
@@ -775,8 +886,44 @@ mod tests {
     #[test]
     fn a_column_keeps_its_colours_across_charts() {
         let s = compile_ok(json!([{"x": "rate", "y": "od600", "color": "medium", "palette": ["teal", "gold"]}, {"x": "medium"}, {"x": "medium", "color": "red"}]));
-        assert_eq!(s["views"][1]["palette"], json!(["teal", "gold"]));
+        // The palette becomes the field's, which every chart of it uses; a chart's own colour still wins.
+        assert_eq!(s["fields"]["medium"]["palette"], json!(["teal", "gold"]));
+        assert!(s["views"][1].get("palette").is_none());
         assert_eq!(s["views"][2]["palette"], json!(["red"]));
+    }
+
+    #[test]
+    fn categories_and_numbers_choose_the_newer_charts() {
+        let s = compile_ok(json!([
+            {"x": "medium", "y": "rate"},
+            {"x": "src", "y": "dst"},
+            {"low": "rate", "high": "od600", "y": "medium", "color": "medium"},
+            {"x": "medium", "color": "src"},
+            {"from": "src", "to": "dst", "type": "pipeline"},
+        ]));
+        let v = s["views"].as_array().unwrap();
+        let types: Vec<&str> = v.iter().map(|v| v["type"].as_str().unwrap()).collect();
+        assert_eq!(types, ["strip", "matrix", "interval", "bars", "layers"]);
+        // The strip puts the value across and the categories down, whichever way it was asked.
+        assert_eq!((&v[0]["x"], &v[0]["y"], &v[0]["title"]), (&json!("rate"), &json!("medium"), &json!("rate by medium")));
+        assert_eq!((&v[2]["low"], &v[2]["high"], &v[2]["label"]), (&json!("rate"), &json!("od600"), &json!("medium")));
+        assert_eq!((&v[3]["field"], &v[3]["color"]), (&json!("medium"), &json!("src")));
+    }
+
+    #[test]
+    fn domains_palettes_and_a_key_are_declared_once() {
+        let s = compile_ok(json!({
+            "key": "WELL",
+            "domains": {"Medium": ["rich", "minimal", "none"]},
+            "palettes": {"src": {"a": "teal"}, "medium": ["gold", "navy", "grey"]},
+            "charts": [{"x": "medium"}, {"x": "rate", "y": "od600", "color": "medium", "palette": ["red"]}]
+        }));
+        assert_eq!(s["key"], "well");
+        assert_eq!(s["fields"]["medium"]["domain"], json!(["rich", "minimal", "none"]));
+        assert_eq!(s["fields"]["medium"]["palette"], json!(["gold", "navy", "grey"]), "a declared palette is not replaced by a chart's");
+        assert_eq!(s["fields"]["src"]["palette"], json!({"a": "teal"}));
+        let c = compile(&json!({"palettes": {"medium": ["teal", "nope"]}, "x": "medium"}), Some(&cols()), None);
+        assert_eq!(c.problems, vec![Problem::new("/palettes/medium/1", "a colour: \"#rrggbb\", \"#rgb\" or a CSS colour name such as \"steelblue\"")]);
     }
 
     #[test]
@@ -795,10 +942,10 @@ mod tests {
 
     #[test]
     fn problems_point_at_the_description() {
-        let c = compile(&json!({"charts": [{"x-axis": "tim", "y": "od600"}, {"x": "medium", "y": "rate"}, {"x": "rate", "bins": 0, "colr": "red"}]}), Some(&cols()), None);
+        let c = compile(&json!({"charts": [{"x-axis": "tim", "y": "od600"}, {"x": "medium", "color": "rate"}, {"x": "rate", "bins": 0, "colr": "red"}]}), Some(&cols()), None);
         let got: Vec<(String, String)> = c.problems.iter().map(|p| (p.path.clone(), p.message.clone())).collect();
         assert_eq!(got[0], ("/charts/0/x-axis".into(), "no column \"tim\"; did you mean \"Time (h)\"?".into()));
-        assert!(got[1].0 == "/charts/1" && got[1].1.contains("no chart for that pair"));
+        assert_eq!(got[1], ("/charts/1/color".into(), "bars split by a column need a category; \"rate\" is a number".into()));
         assert_eq!(got[2], ("/charts/2/colr".into(), "unknown key \"colr\"; did you mean \"color\"?".into()));
         assert!(c.spec.is_none());
 

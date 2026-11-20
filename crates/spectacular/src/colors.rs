@@ -30,6 +30,9 @@ pub const COLOR_NAMES: &[&str] = &[
 /// Most categories a palette may hold; the point shaders keep ten colours.
 pub const MAX_PALETTE: usize = 10;
 
+/// Most colours a field's palette may hold; the point shaders keep this many.
+pub const MAX_FIELD_PALETTE: usize = 32;
+
 /// True for "#rgb", "#rrggbb" or a CSS colour name, in any letter case.
 pub fn is_color(value: &str) -> bool {
     if let Some(hex) = value.strip_prefix('#') {

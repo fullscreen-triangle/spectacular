@@ -138,13 +138,21 @@ fn pointer<'a>(doc: &'a Value, pointer: &str) -> Result<&'a Value, String> {
     Ok(at)
 }
 
-/// Rows from JSON. As in the browser, the fields a table has are those of its first row.
+/// Rows from JSON. As in the browser, the fields a table has are every property any row
+/// has, in order of first appearance; a row without one holds a missing value.
 fn from_json(doc: &Value, at: &str) -> Result<Table, String> {
     let rows = pointer(doc, at)?.as_array().ok_or_else(|| {
         let shown = if at.is_empty() { "(document)" } else { at };
         format!("data.pointer {shown:?} must lead to an array of row objects")
     })?;
-    let names: Vec<String> = rows.first().and_then(Value::as_object).map(|r| r.keys().cloned().collect()).unwrap_or_default();
+    let mut names: Vec<String> = Vec::new();
+    for row in rows.iter().filter_map(Value::as_object) {
+        for k in row.keys() {
+            if !names.contains(k) {
+                names.push(k.clone());
+            }
+        }
+    }
     let columns = names
         .into_iter()
         .map(|name| {

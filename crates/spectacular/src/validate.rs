@@ -5,21 +5,27 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 
-use crate::colors::{is_color, MAX_PALETTE};
+use crate::colors::{is_color, MAX_FIELD_PALETTE, MAX_PALETTE};
 use crate::{distance, FieldType, Problem};
 
 pub const SPEC_VERSION: &str = "spectacular/v0";
 pub const MAX_DIMENSIONS: usize = 32;
 
-pub const VIEW_TYPES: &[&str] = &["scatter", "histogram", "bars", "density", "scatter3d", "arc", "sankey", "network3d"];
+pub const VIEW_TYPES: &[&str] = &[
+    "scatter", "histogram", "bars", "density", "scatter3d", "strip", "matrix", "interval", "arc", "sankey", "network3d", "layers",
+];
 
 /// Required and optional field properties per view type.
 pub fn view_fields(t: &str) -> (&'static [&'static str], &'static [&'static str]) {
     match t {
         "scatter" => (&["x", "y"], &["color"]),
-        "histogram" | "bars" => (&["field"], &[]),
+        "histogram" => (&["field"], &[]),
+        "bars" => (&["field"], &["color"]),
         "density" => (&["x", "y"], &[]),
         "scatter3d" => (&["x", "y", "z"], &["color"]),
+        "strip" => (&["x", "y"], &["color"]),
+        "matrix" => (&["x", "y"], &[]),
+        "interval" => (&["low", "high"], &["label", "color"]),
         _ => (&["source", "target"], &[]),
     }
 }
@@ -28,9 +34,10 @@ pub fn view_fields(t: &str) -> (&'static [&'static str], &'static [&'static str]
 pub fn needs(t: &str, key: &str) -> Option<FieldType> {
     use FieldType::*;
     match (t, key) {
-        ("scatter" | "scatter3d", "color") => None,
-        ("bars", _) => Some(Nominal),
-        ("arc" | "sankey" | "network3d", _) => Some(Nominal),
+        ("scatter" | "scatter3d" | "strip" | "interval", "color") => None,
+        ("bars" | "matrix", _) => Some(Nominal),
+        ("strip", "y") | ("interval", "label") => Some(Nominal),
+        ("arc" | "sankey" | "network3d" | "layers", _) => Some(Nominal),
         _ => Some(Quantitative),
     }
 }
@@ -38,7 +45,7 @@ pub fn needs(t: &str, key: &str) -> Option<FieldType> {
 fn brushes(t: &str) -> &'static [&'static str] {
     match t {
         "scatter" => &["xy", "none"],
-        "histogram" => &["x", "none"],
+        "histogram" | "strip" | "interval" => &["x", "none"],
         "density" | "scatter3d" => &[],
         _ => &["select", "none"],
     }
@@ -53,12 +60,15 @@ fn extra_view_keys(t: &str) -> &'static [&'static str] {
         "bars" => &["brush", "palette"],
         "density" => &["bins"],
         "scatter3d" => &["pointSize", "fill", "palette"],
+        "strip" => &["brush", "pointSize", "fill", "palette"],
+        "interval" => &["brush", "scale", "fill", "palette"],
         "arc" => &["brush", "order"],
         _ => &["brush"],
     }
 }
 
-const TOP_KEYS: &[&str] = &["$schema", "version", "title", "description", "theme", "data", "fields", "views", "layout", "output"];
+const TOP_KEYS: &[&str] = &["$schema", "version", "title", "description", "theme", "data", "fields", "key", "views", "layout", "output"];
+const FIELD_KEYS: &[&str] = &["type", "title", "domain", "palette"];
 const THEMES: &[&str] = &["auto", "light", "dark", "paper"];
 const DATA_FORMATS: &[&str] = &["csv", "tsv", "json"];
 const FIGURE_FORMATS: &[&str] = &["svg", "pdf", "png"];
@@ -98,8 +108,13 @@ pub fn dimensions_needed(view: &Map<String, Value>) -> usize {
         Some("scatter") => {
             if view.get("brush").and_then(Value::as_str).unwrap_or("xy") == "xy" { 2 } else { 0 }
         }
-        Some("histogram" | "bars" | "arc" | "sankey" | "network3d") => 1,
+        Some("histogram" | "bars" | "matrix" | "arc" | "sankey" | "network3d" | "layers") => 1,
         Some("density") => 2,
+        Some("strip") => usize::from(view.get("brush").and_then(Value::as_str).unwrap_or("x") == "x"),
+        Some("interval") => {
+            let brushed = view.get("brush").and_then(Value::as_str).unwrap_or("x") == "x";
+            if brushed && view.get("scale").and_then(Value::as_str) != Some("label") { 2 } else { 0 }
+        }
         _ => 0,
     }
 }
@@ -117,6 +132,11 @@ pub fn needed_fields(spec: &Value) -> Vec<String> {
                     names.push(f.to_string());
                 }
             }
+        }
+    }
+    if let Some(key) = spec.get("key").and_then(Value::as_str).filter(|k| !k.is_empty()) {
+        if !names.iter().any(|n| n == key) {
+            names.push(key.to_string());
         }
     }
     for name in spec.get("fields").and_then(Value::as_object).into_iter().flat_map(|f| f.keys()) {
@@ -193,17 +213,72 @@ pub fn validate(input: &Value, types: Option<&HashMap<String, FieldType>>) -> Ve
                         out.push(Problem::new(format!("/fields/{name}"), "must be an object"));
                         continue;
                     };
-                    unknown_keys(def, &["type", "title"], &format!("/fields/{name}"), &mut out);
+                    let at = format!("/fields/{name}");
+                    unknown_keys(def, FIELD_KEYS, &at, &mut out);
                     if let Some(t) = def.get("type") {
                         match t.as_str().and_then(FieldType::parse) {
                             Some(ft) => {
                                 declared.insert(name.clone(), ft);
                             }
-                            None => out.push(Problem::new(format!("/fields/{name}/type"), "must be \"quantitative\" or \"nominal\"")),
+                            None => out.push(Problem::new(format!("{at}/type"), "must be \"quantitative\" or \"nominal\"")),
+                        }
+                    }
+                    if let Some(d) = def.get("domain") {
+                        let ok = d.as_array().is_some_and(|d| {
+                            let names: Vec<&str> = d.iter().filter_map(Value::as_str).collect();
+                            let mut unique = names.clone();
+                            unique.sort_unstable();
+                            unique.dedup();
+                            !d.is_empty() && names.len() == d.len() && unique.len() == names.len()
+                        });
+                        if !ok {
+                            out.push(Problem::new(format!("{at}/domain"), "a list of category names, each once"));
+                        }
+                    }
+                    if let Some(p) = def.get("palette") {
+                        let entries: Vec<(String, &Value)> = match p {
+                            Value::Array(list) => list.iter().enumerate().map(|(k, c)| (k.to_string(), c)).collect(),
+                            Value::Object(map) => map.iter().map(|(k, c)| (k.clone(), c)).collect(),
+                            _ => Vec::new(),
+                        };
+                        if entries.is_empty() || entries.len() > MAX_FIELD_PALETTE {
+                            out.push(Problem::new(
+                                format!("{at}/palette"),
+                                format!("a list of 1 to {MAX_FIELD_PALETTE} colours, or category name to colour"),
+                            ));
+                        } else {
+                            for (k, c) in entries {
+                                if !c.as_str().is_some_and(is_color) {
+                                    out.push(Problem::new(format!("{at}/palette/{k}"), COLOR_RULE));
+                                }
+                            }
+                        }
+                    }
+                    // A domain or a palette makes a field nominal.
+                    if def.contains_key("domain") || def.contains_key("palette") {
+                        match def.get("type") {
+                            Some(t) if t.as_str() == Some("quantitative") => {
+                                out.push(Problem::new(at.clone(), "a domain or a palette is for a nominal field; this one is quantitative"));
+                            }
+                            None => {
+                                declared.insert(name.clone(), FieldType::Nominal);
+                            }
+                            _ => {}
                         }
                     }
                 }
             }
+        }
+    }
+
+    if let Some(k) = spec.get("key") {
+        match k.as_str() {
+            Some(key) if !key.is_empty() => {
+                if types.is_some_and(|ty| !ty.contains_key(key)) {
+                    out.push(Problem::new("/key", format!("no field \"{key}\" in the data")));
+                }
+            }
+            _ => out.push(Problem::new("/key", "the name of a field whose values identify rows")),
         }
     }
 
@@ -287,6 +362,14 @@ pub fn validate(input: &Value, types: Option<&HashMap<String, FieldType>>) -> Ve
                 out.push(Problem::new(format!("{at}/order"), "one of count, name, data"));
             }
         }
+        if let Some(sc) = v.get("scale") {
+            if !in_list(sc, &["shared", "label"]) {
+                out.push(Problem::new(format!("{at}/scale"), "one of shared, label"));
+            }
+        }
+        if v.get("scale").and_then(Value::as_str) == Some("label") && v.get("brush").and_then(Value::as_str) == Some("x") {
+            out.push(Problem::new(format!("{at}/brush"), "a brush needs one shared scale; with \"scale\": \"label\" it is \"none\""));
+        }
         if let Some(f) = v.get("fill") {
             if !f.as_str().is_some_and(is_color) {
                 out.push(Problem::new(format!("{at}/fill"), COLOR_RULE));
@@ -342,11 +425,12 @@ pub fn validate(input: &Value, types: Option<&HashMap<String, FieldType>>) -> Ve
         .filter_map(Value::as_object)
         .filter(|v| v.get("type").and_then(Value::as_str).is_some_and(|t| VIEW_TYPES.contains(&t)))
         .map(dimensions_needed)
-        .sum();
+        .sum::<usize>()
+        + usize::from(spec.get("key").and_then(Value::as_str).is_some_and(|k| !k.is_empty()));
     if dims > MAX_DIMENSIONS {
         out.push(Problem::new(
             "/views",
-            format!("these views need {dims} crossfilter dimensions; the limit is {MAX_DIMENSIONS} (scatter with brush 2, density 2, histogram 1, bars 1, arc 1, sankey 1, network3d 1, scatter3d 0)"),
+            format!("these views need {dims} crossfilter dimensions; the limit is {MAX_DIMENSIONS} (scatter with brush 2, interval with brush 2, density 2, histogram 1, bars 1, strip with brush 1, matrix 1, arc 1, sankey 1, network3d 1, layers 1, scatter3d 0, and 1 for a key)"),
         ));
     }
 

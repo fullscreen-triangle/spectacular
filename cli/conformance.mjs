@@ -46,11 +46,30 @@ const bases = [
   { data: { url: "table.csv", format: "csv" }, views: [{ id: "s", type: "scatter", x: "a", y: "b" }] },
   { data: { columns: "external" }, views: [{ id: "h", type: "histogram", field: "a" }] },
   { data: { values: [] }, views: [{ id: "h", type: "histogram", field: "a" }] },
+  // Domains and colours declared on fields, a key, and the views over categories.
+  { title: "Rows of a bundle", key: "id", data: { values: rows.map((r, i) => ({ ...r, id: `r${i}`, lo: i, hi: i + 2 })) },
+    fields: {
+      k: { domain: ["y", "x", "z"], palette: { x: "teal", y: "#e15759" } },
+      s: { type: "nominal", domain: ["q", "p"], palette: ["gold", "#123456"] },
+      t: { palette: ["red"] },
+    },
+    views: [
+      { id: "split", type: "bars", field: "k", color: "s" },
+      { id: "strip", type: "strip", x: "b", y: "k", color: "s", pointSize: 2, fill: "navy" },
+      { id: "grid", type: "matrix", x: "s", y: "t", brush: "select" },
+      { id: "span", type: "interval", low: "lo", high: "hi", label: "k", color: "a", brush: "x", palette: ["red"] },
+      { id: "own", type: "interval", low: "lo", high: "hi", label: "s", scale: "label", brush: "none" },
+      { id: "flow", type: "layers", source: "s", target: "t" },
+    ] },
+  // JSON rows need not all carry the same properties.
+  { data: { values: [{ a: 1 }, { b: "x" }, { a: 2, b: "y" }] },
+    views: [{ id: "h", type: "histogram", field: "a" }, { id: "k", type: "bars", field: "b" }, { id: "strip", type: "strip", x: "a", y: "b", brush: "none" }] },
 ];
 const junk = [null, 0, -1, 1.5, 2, 33, 1025, 10001, "x", "", "#zzz", "teal", "TEAL", "#abc", "#abcd", [], [1, 2], ["red"],
   ["red", "nope"], [0, 0], [16, 2000], {}, true, false, "none", "xy", "x", "select", "count", "a", "k", "s", "nope",
-  "density", "pie", "spectacular/v1", "paper", "csv", "xlsx", "/rows", "rows", "external", "mm", "cm", "svg", "gif"];
-const typos = ["colr", "feild", "binz", "tpye", "titel", "colour", "point_size", "Fill", "pallete", "extra", "brsh"];
+  "density", "pie", "spectacular/v1", "paper", "csv", "xlsx", "/rows", "rows", "external", "mm", "cm", "svg", "gif",
+  "strip", "matrix", "interval", "layers", "id", "lo", "hi", "label", "shared", ["x", "x"], ["y", "z"], { x: "red" }, { x: "nope" }, ["red", 3]];
+const typos = ["colr", "feild", "binz", "tpye", "titel", "colour", "point_size", "Fill", "pallete", "extra", "brsh", "domian", "lable", "kye", "hgih"];
 
 function paths(v, at = []) {
   const out = [at];
