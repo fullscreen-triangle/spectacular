@@ -1,7 +1,7 @@
-import { axisBottom, axisLeft, brushX, format, max, scaleLinear } from "d3";
+import { brushX, max, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import type { HistogramView } from "../spec";
-import { axisLabels, clip, elastic, frame, type Panel, type ViewContext } from "./common";
+import { axisLabels, clip, elastic, frame, xAxis, yAxis, type Panel, type ViewContext } from "./common";
 
 /**
  * Bars show rows passing every *other* filter; the light bars behind them show the
@@ -16,8 +16,8 @@ export function histogram(ctx: ViewContext<HistogramView>): Panel {
   const [min, width, bins] = engine.state.binnings[group] as [number, number, number];
   const x = scaleLinear().domain([min, min + width * bins]).range([0, f.w]);
   const y = scaleLinear().range([f.h, 0]);
-  f.g.append("g").attr("transform", `translate(0,${f.h})`).call(axisBottom(x).ticks(Math.max(2, f.w / 80)));
-  const yAxis = f.g.append("g");
+  xAxis(f, x, false);
+  const redrawY = yAxis(f, y, 4);
   axisLabels(f, ctx.titleOf(view.field), "count");
 
   const bw = Math.max(1, f.w / bins - (bins < 80 ? 1 : 0));
@@ -38,7 +38,7 @@ export function histogram(ctx: ViewContext<HistogramView>): Panel {
     const counts = state.counts[group]!;
     const top = elastic(max(counts) ?? 0, max(state.baseline[group]!) ?? 0);
     y.domain([0, top.max]).nice();
-    yAxis.call(axisLeft(y).ticks(4).tickFormat(format("~s")));
+    redrawY();
     const height = (d: number) => Math.max(0, f.h - y(d));
     context.attr("display", top.context ? null : "none").attr("y", (d) => f.h - height(d)).attr("height", height);
     focus.data(Array.from(counts)).attr("y", (d) => f.h - height(d)).attr("height", height);

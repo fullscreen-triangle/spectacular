@@ -19,6 +19,14 @@
     "description": {
       "type": "string"
     },
+    "theme": {
+      "enum": [
+        "auto",
+        "light",
+        "dark",
+        "paper"
+      ]
+    },
     "data": {
       "oneOf": [
         {

@@ -1,7 +1,7 @@
-import { axisBottom, axisLeft, format, max, scaleBand, scaleLinear } from "d3";
+import { axisBottom, axisLeft, max, scaleBand, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import type { BarsView } from "../spec";
-import { PALETTE, categorical, clip, elastic, frame, type Panel, type ViewContext } from "./common";
+import { MARGIN, PALETTE, categorical, clip, elastic, frame, tickFormat, type Panel, type ViewContext } from "./common";
 
 /**
  * Horizontal bars per category. Clicking toggles a category in this view's filter. As in
@@ -17,13 +17,13 @@ export function bars(ctx: ViewContext<BarsView>): Panel {
   // Long labels keep their end: in IRIs and paths that is the part that differs.
   const fit = Math.floor((labelWidth - 8) / 7);
   const short = (l: string) => (l.length <= fit ? l : "…" + l.slice(l.length - fit + 1));
-  f.g.attr("transform", `translate(${labelWidth},8)`);
-  const w = f.w - (labelWidth - 52);
+  f.g.attr("transform", `translate(${labelWidth},${MARGIN.top})`);
+  const w = f.w - (labelWidth - MARGIN.left);
   const yb = scaleBand<number>().domain(col.labels.map((_, i) => i)).range([0, f.h]).padding(0.15);
   const x = scaleLinear().range([0, w]);
-  const xAxis = f.g.append("g").attr("transform", `translate(0,${f.h})`);
-  f.g.append("g")
-    .call(axisLeft(yb).tickFormat((i) => short(col.labels[i]!)))
+  const xAxis = f.g.append("g").attr("class", "sv-axis").attr("transform", `translate(0,${f.h})`);
+  f.g.append("g").attr("class", "sv-axis")
+    .call(axisLeft(yb).tickFormat((i) => short(col.labels[i]!)).tickSizeOuter(0).tickPadding(6))
     .call((a) => a.selectAll<SVGGElement, number>(".tick").append("title").text((i) => col.labels[i]!));
 
   const chosen = new Set<number>();
@@ -46,7 +46,7 @@ export function bars(ctx: ViewContext<BarsView>): Panel {
     const counts = state.counts[group]!;
     const top = elastic(max(counts) ?? 0, max(state.baseline[group]!) ?? 0);
     x.domain([0, top.max]).nice();
-    xAxis.call(axisBottom(x).ticks(4).tickFormat(format("~s")));
+    xAxis.call(axisBottom(x).ticks(4).tickFormat(tickFormat(x, 4)).tickSizeOuter(0).tickPadding(6));
     context.attr("display", top.context ? null : "none").attr("width", (i) => x(state.baseline[group]![i]!));
     focus
       .attr("width", (i) => x(counts[i]!))

@@ -123,4 +123,15 @@ describe("data from other programs", () => {
     expect(paths({ data: { values: [] }, views, output: { interactive: "yes", figure: { format: "gif", width: 80, unit: "cm", dpi: 0 } } }))
       .toEqual(["/output/interactive", "/output/figure/format", "/output/figure/unit", "/output/figure/dpi"]);
   });
+
+  it("accepts the named themes and nothing else", () => {
+    for (const theme of ["auto", "light", "dark", "paper"]) expect(paths({ data: { values: [] }, views, theme })).toEqual([]);
+    expect(paths({ data: { values: [] }, views, theme: "sepia" })).toEqual(["/theme"]);
+  });
+
+  it("knows a CSV's columns even when it has no rows", async () => {
+    const spec = { data: { url: "x.csv" }, views: [{ id: "h", type: "histogram", field: "nope" }] } as Spec;
+    const table = await loadTable(spec, undefined, async () => new Response("step,other\n"));
+    expect(paths(spec, fieldTypes(table))).toEqual(["/views/0/field"]);
+  });
 });

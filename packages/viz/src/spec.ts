@@ -125,11 +125,18 @@ export interface FigureOutput {
   dpi?: number;
 }
 
+/**
+ * "auto" follows the host page's colour scheme; "light" and "dark" fix it; "paper" is
+ * for print: white, no panel borders, darker axes.
+ */
+export type Theme = "auto" | "light" | "dark" | "paper";
+
 export interface Spec {
   $schema?: string;
   version?: typeof SPEC_VERSION;
   title?: string;
   description?: string;
+  theme?: Theme;
   data: DataSource;
   fields?: Record<string, FieldDef>;
   views: View[];
@@ -187,7 +194,8 @@ const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
   sankey: ["brush"],
   network3d: ["brush"],
 };
-const TOP_KEYS = ["$schema", "version", "title", "description", "data", "fields", "views", "layout", "output"];
+const TOP_KEYS = ["$schema", "version", "title", "description", "theme", "data", "fields", "views", "layout", "output"];
+const THEMES: Theme[] = ["auto", "light", "dark", "paper"];
 const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], columns: ["columns"] };
 const DATA_FORMATS: DataFormat[] = ["csv", "tsv", "json"];
 const FIGURE_FORMATS: FigureOutput["format"][] = ["svg", "pdf", "png"];
@@ -258,6 +266,7 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
 
   if (spec.version !== undefined && spec.version !== SPEC_VERSION)
     bad("/version", `unsupported version ${JSON.stringify(spec.version)}; this build reads "${SPEC_VERSION}"`);
+  if (spec.theme !== undefined && !THEMES.includes(spec.theme as Theme)) bad("/theme", `one of ${THEMES.join(", ")}`);
 
   const data = spec.data;
   if (!isObject(data)) bad("/data", "required: { url } | { values } | { columns: \"external\" }");
@@ -412,6 +421,7 @@ export function jsonSchema(): Record<string, unknown> {
       version: { const: SPEC_VERSION },
       title: str,
       description: str,
+      theme: { enum: THEMES },
       data: {
         oneOf: [
           closed({ url: str, format: { enum: DATA_FORMATS }, pointer: { type: "string", pattern: "^(/.*)?$" } }, ["url"]),

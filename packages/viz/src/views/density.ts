@@ -1,7 +1,7 @@
-import { axisBottom, axisLeft, interpolateInferno, rgb, scaleLinear } from "d3";
+import { format, interpolateInferno, rgb, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import type { DensityView } from "../spec";
-import { axisLabels, frame, type Panel, type ViewContext } from "./common";
+import { addKey, axisLabels, frame, gradient, xAxis, yAxis, type Panel, type ViewContext } from "./common";
 
 const LUT = Array.from({ length: 256 }, (_, i) => {
   const c = rgb(interpolateInferno(i / 255));
@@ -19,9 +19,20 @@ export function density(ctx: ViewContext<DensityView>): Panel {
   const [xMin, xW, xBins, yMin, yW, yBins] = engine.state.binnings[group] as number[] as [number, number, number, number, number, number];
   const x = scaleLinear().domain([xMin, xMin + xW * xBins]).range([0, f.w]);
   const y = scaleLinear().domain([yMin, yMin + yW * yBins]).range([f.h, 0]);
-  f.g.append("g").attr("transform", `translate(0,${f.h})`).call(axisBottom(x).ticks(Math.max(2, f.w / 80)));
-  f.g.append("g").call(axisLeft(y).ticks(Math.max(2, f.h / 50)));
+  xAxis(f, x, false);
+  yAxis(f, y, undefined);
   axisLabels(f, ctx.titleOf(view.x), ctx.titleOf(view.y));
+
+  // The colour key: rows per bin, on the same log scale as the cells.
+  const key = document.createElement("div");
+  key.className = "sv-key";
+  const top = document.createTextNode("");
+  const title = document.createElement("span");
+  title.className = "sv-key-title";
+  title.textContent = "rows per bin (log)";
+  key.append(title, document.createTextNode("1"), gradient(interpolateInferno), top);
+  addKey(f.root, key);
+  const fmt = format("~s");
 
   const canvas = document.createElement("canvas");
   canvas.width = xBins;
@@ -33,9 +44,9 @@ export function density(ctx: ViewContext<DensityView>): Panel {
 
   const draw = (state: EngineState) => {
     const counts = state.counts[group]!;
-    let top = 0;
-    for (const c of counts) if (c > top) top = c;
-    const scale = top > 0 ? 255 / Math.log1p(top) : 0;
+    let top_ = 0;
+    for (const c of counts) if (c > top_) top_ = c;
+    const scale = top_ > 0 ? 255 / Math.log1p(top_) : 0;
     for (let by = 0; by < yBins; by++) {
       const dst = (yBins - 1 - by) * xBins; // canvas rows run downwards
       for (let bx = 0; bx < xBins; bx++) {
@@ -47,6 +58,7 @@ export function density(ctx: ViewContext<DensityView>): Panel {
       }
     }
     c2d.putImageData(image, 0, 0);
+    top.textContent = fmt(Math.max(1, top_));
   };
   draw(engine.state);
   return { el: f.root, update: draw, destroy() {} };

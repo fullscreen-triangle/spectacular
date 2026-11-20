@@ -1,4 +1,4 @@
-import { schemeTableau10, select, type Selection } from "d3";
+import { axisBottom, axisLeft, format, interpolateViridis, schemeTableau10, select, type NumberValue, type ScaleLinear, type Selection } from "d3";
 import type { Column, Table } from "../data";
 import type { Engine, EngineState } from "../engine/client";
 import type { View } from "../spec";
@@ -31,7 +31,8 @@ export interface ViewContext<V extends View = View> {
   titleOf(field: string): string;
 }
 
-export const MARGIN = { top: 8, right: 12, bottom: 34, left: 52 };
+// Room for tick labels plus an axis title on the bottom and left.
+export const MARGIN = { top: 10, right: 16, bottom: 42, left: 62 };
 export const PALETTE = schemeTableau10;
 
 export interface Frame {
@@ -41,6 +42,8 @@ export interface Frame {
   svg: Selection<SVGSVGElement, unknown, null, undefined>;
   /** A group translated to the plot area's origin. */
   g: Selection<SVGGElement, unknown, null, undefined>;
+  /** The same origin in an SVG layer under the plot's canvases, for gridlines. */
+  under: Selection<SVGGElement, unknown, null, undefined>;
   w: number;
   h: number;
 }
@@ -64,6 +67,13 @@ export function frame(ctx: ViewContext, height = 300): Frame {
   const plot = document.createElement("div");
   plot.className = "sv-plot";
   Object.assign(plot.style, { left: `${MARGIN.left}px`, top: `${MARGIN.top}px`, width: `${w}px`, height: `${h}px` });
+  const under = select(stage)
+    .append("svg")
+    .attr("class", "sv-underlay")
+    .attr("width", w + MARGIN.left + MARGIN.right)
+    .attr("height", h + MARGIN.top + MARGIN.bottom)
+    .append("g")
+    .attr("transform", `translate(${MARGIN.left},${MARGIN.top})`);
   stage.append(plot);
 
   const svg = select(stage)
@@ -72,7 +82,7 @@ export function frame(ctx: ViewContext, height = 300): Frame {
     .attr("width", w + MARGIN.left + MARGIN.right)
     .attr("height", h + MARGIN.top + MARGIN.bottom);
   const g = svg.append("g").attr("transform", `translate(${MARGIN.left},${MARGIN.top})`);
-  return { root, plot, svg, g, w, h };
+  return { root, plot, svg, g, under, w, h };
 }
 
 /**
@@ -93,16 +103,113 @@ export function clip(f: Pick<Frame, "svg" | "w" | "h">): string {
   return id;
 }
 
+/** Axis titles, centred along each axis, outside the tick labels. */
 export function axisLabels(f: Frame, x: string, y: string) {
-  f.g.append("text").attr("class", "sv-axis-label").attr("x", f.w).attr("y", f.h + 30).attr("text-anchor", "end").text(x);
+  f.g.append("text").attr("class", "sv-axis-label").attr("x", f.w / 2).attr("y", f.h + 36).attr("text-anchor", "middle").text(x);
   f.g
     .append("text")
     .attr("class", "sv-axis-label")
     .attr("transform", "rotate(-90)")
-    .attr("x", 0)
-    .attr("y", -40)
-    .attr("text-anchor", "end")
+    .attr("x", -f.h / 2)
+    .attr("y", -MARGIN.left + 14)
+    .attr("text-anchor", "middle")
     .text(y);
+}
+
+/**
+ * Tick labels a reader can take in at a glance: integers without decimals, values from
+ * 10,000 up with SI prefixes (12k, 3.4M), and otherwise the fewest digits that tell ticks apart.
+ */
+export function tickFormat(scale: ScaleLinear<number, number>, count: number): (d: NumberValue) => string {
+  const ticks = scale.ticks(count);
+  const largest = Math.max(0, ...ticks.map(Math.abs));
+  const f = largest >= 1e4 ? format("~s") : ticks.every(Number.isInteger) ? format("d") : scale.tickFormat(count);
+  return (d) => f(+d);
+}
+
+const xTicks = (w: number) => Math.max(2, Math.round(w / 90));
+const yTicks = (h: number) => Math.max(2, Math.round(h / 45));
+
+/** A bottom axis with light vertical gridlines across the plot area. */
+export function xAxis(f: Frame, scale: ScaleLinear<number, number>, grid = true) {
+  const n = xTicks(f.w);
+  if (grid)
+    f.under.append("g").attr("class", "sv-gridlines").attr("transform", `translate(0,${f.h})`)
+      .call(axisBottom(scale).ticks(n).tickSize(-f.h).tickFormat(() => "")).call((g) => g.select(".domain").remove());
+  f.g.append("g").attr("class", "sv-axis").attr("transform", `translate(0,${f.h})`)
+    .call(axisBottom(scale).ticks(n).tickFormat(tickFormat(scale, n)).tickSizeOuter(0).tickPadding(6));
+}
+
+/**
+ * A left axis with horizontal gridlines. It returns a redraw for views whose domain
+ * follows the data (histogram counts), which call it after changing the scale.
+ */
+export function yAxis(f: Frame, scale: ScaleLinear<number, number>, count = yTicks(f.h)): () => void {
+  const grid = f.under.append("g").attr("class", "sv-gridlines");
+  const axis = f.g.append("g").attr("class", "sv-axis");
+  const draw = () => {
+    grid.call(axisLeft(scale).ticks(count).tickSize(-f.w).tickFormat(() => "")).call((g) => g.select(".domain").remove());
+    axis.call(axisLeft(scale).ticks(count).tickFormat(tickFormat(scale, count)).tickSizeOuter(0).tickPadding(6));
+  };
+  draw();
+  return draw;
+}
+
+/**
+ * The colour key for a point view coloured by `field`: swatches for a nominal field, a
+ * viridis bar for a quantitative one. It is HTML and inline SVG, so SVG export keeps it.
+ */
+export function colorKey(table: Table, field: string | undefined, title: string): HTMLElement | null {
+  if (!field) return null;
+  const c = table.columns.get(field);
+  if (!c) return null;
+  const key = document.createElement("div");
+  key.className = "sv-key";
+  const name = document.createElement("span");
+  name.className = "sv-key-title";
+  name.textContent = title;
+  key.append(name);
+  if (c.type === "nominal") {
+    const shown = c.labels.slice(0, 12);
+    shown.forEach((label, i) => {
+      const item = document.createElement("span");
+      item.className = "sv-key-item";
+      const sw = document.createElement("span");
+      sw.className = "sv-swatch";
+      sw.style.backgroundColor = PALETTE[i % PALETTE.length]!;
+      item.append(sw, document.createTextNode(label === "" ? "(empty)" : label));
+      key.append(item);
+    });
+    if (c.labels.length > shown.length) {
+      const more = document.createElement("span");
+      more.className = "sv-key-item";
+      more.textContent = `+${c.labels.length - shown.length} more`;
+      key.append(more);
+    }
+  } else {
+    const fmt = format(".3~g");
+    key.append(document.createTextNode(fmt(c.extent[0])), gradient(interpolateViridis), document.createTextNode(fmt(c.extent[1])));
+  }
+  return key;
+}
+
+let gradients = 0;
+
+/** A small horizontal colour ramp as inline SVG. */
+export function gradient(interpolate: (t: number) => string, width = 96, height = 8): SVGSVGElement {
+  const id = `sv-ramp-${++gradients}`;
+  const svg = select(document.createElementNS("http://www.w3.org/2000/svg", "svg"))
+    .attr("class", "sv-ramp").attr("width", width).attr("height", height);
+  svg.append("defs").append("linearGradient").attr("id", id)
+    .selectAll("stop").data([0, 0.25, 0.5, 0.75, 1]).join("stop")
+    .attr("offset", (t) => `${t * 100}%`).attr("stop-color", (t) => interpolate(t));
+  svg.append("rect").attr("width", width).attr("height", height).attr("rx", 2).attr("fill", `url(#${id})`);
+  return svg.node()!;
+}
+
+/** Puts a key under a panel's title. */
+export function addKey(root: HTMLElement, key: HTMLElement | null) {
+  if (key) root.insertBefore(key, root.children[1] ?? null);
 }
 
 export function numeric(table: Table, field: string): Extract<Column, { type: "quantitative" }> {

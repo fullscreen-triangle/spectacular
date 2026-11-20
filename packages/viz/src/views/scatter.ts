@@ -1,9 +1,10 @@
-import { axisBottom, axisLeft, brush, interpolateViridis, scaleLinear } from "d3";
+import { brush, interpolateViridis, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import { SVG_NS } from "../export";
 import type { ScatterView } from "../spec";
 import {
-  COLOR_GLSL, PALETTE, axisLabels, centred, colorChannel, frame, hexToRgb, numeric, pointAlpha, selectedScale,
+  COLOR_GLSL, PALETTE, addKey, axisLabels, centred, colorChannel, colorKey, frame, hexToRgb, numeric, pointAlpha, selectedScale,
+  xAxis, yAxis,
   type Panel, type ViewContext,
 } from "./common";
 
@@ -64,9 +65,10 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   const xs = numeric(table, view.x), ys = numeric(table, view.y);
   const x = scaleLinear().domain(xs.extent).range([0, f.w]).nice();
   const y = scaleLinear().domain(ys.extent).range([f.h, 0]).nice();
-  f.g.append("g").attr("transform", `translate(0,${f.h})`).call(axisBottom(x).ticks(Math.max(2, f.w / 80)));
-  f.g.append("g").call(axisLeft(y).ticks(Math.max(2, f.h / 50)));
+  xAxis(f, x);
+  yAxis(f, y);
   axisLabels(f, ctx.titleOf(view.x), ctx.titleOf(view.y));
+  addKey(f.root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : ""));
 
   const canvas = document.createElement("canvas");
   const dpr = window.devicePixelRatio || 1;

@@ -1,7 +1,7 @@
 import { fieldTypes, loadTable, type ExternalColumn, type Table } from "./data";
 import { Engine, type EngineState } from "./engine/client";
 import type { DimInit, GroupInit } from "./engine/protocol";
-import { SpecError, validate, type Spec, type View } from "./spec";
+import { SpecError, validate, type Spec, type Theme, type View } from "./spec";
 import { arc } from "./views/arc";
 import { bars } from "./views/bars";
 import { edgePairs, type Allocation, type Panel, type ViewContext } from "./views/common";
@@ -20,6 +20,10 @@ export interface MountOptions {
   fetch?: typeof fetch;
   /** Supply a worker (e.g. from a bundler that needs its own import form). */
   worker?: Worker;
+  /** Used when `worker` fails to start, e.g. a host that refuses workers. */
+  fallbackWorker?: () => Worker;
+  /** The theme when the spec's is "auto" or absent, e.g. one detected from a notebook. */
+  theme?: Theme;
 }
 
 /** One active brush, in data terms: a closed range on a quantitative field, or categories. */
@@ -122,6 +126,15 @@ const BUILDERS: { [K in View["type"]]: (ctx: ViewContext<Extract<View, { type: K
 
 let styled = false;
 
+/** Adds spectacular's stylesheet to the page once. */
+export function ensureStyle() {
+  if (styled || typeof document === "undefined") return;
+  const style = document.createElement("style");
+  style.textContent = STYLE;
+  document.head.append(style);
+  styled = true;
+}
+
 export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}): Promise<Handle> {
   let problems = validate(spec);
   if (problems.length) throw new SpecError(problems);
@@ -130,15 +143,17 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
   if (problems.length) throw new SpecError(problems);
 
   const { dims, groups, allocations } = plan(spec, table);
-  const engine = await Engine.start(table.rows, dims, groups, opts.worker);
-
-  if (!styled && typeof document !== "undefined") {
-    const style = document.createElement("style");
-    style.textContent = STYLE;
-    document.head.append(style);
-    styled = true;
+  let engine: Engine;
+  try {
+    engine = await Engine.start(table.rows, dims, groups, opts.worker);
+  } catch (e) {
+    if (!opts.fallbackWorker) throw e;
+    engine = await Engine.start(table.rows, dims, groups, opts.fallbackWorker());
   }
+
+  ensureStyle();
   el.classList.add("sv-root");
+  el.dataset.theme = spec.theme && spec.theme !== "auto" ? spec.theme : opts.theme ?? "auto";
   el.replaceChildren();
   if (spec.title) {
     const h = document.createElement("div");
@@ -155,16 +170,43 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
   el.append(status, grid);
 
   const gap = 12;
-  const cell = (Math.max(320, el.clientWidth || 960) - gap * (columns - 1)) / columns;
   const titleOf = (field: string) => spec.fields?.[field]?.title ?? field;
-  const panels = spec.views.map((view, i) => {
-    const span = Math.min(columns, view.span ?? 1);
-    const build = BUILDERS[view.type] as (ctx: ViewContext) => Panel;
-    const panel = build({ view, table, engine, alloc: allocations[i]!, width: cell * span + gap * (span - 1) - 2, titleOf });
-    panel.el.style.gridColumn = `span ${span}`;
-    grid.append(panel.el);
-    return panel;
+  /** The width inside the root's padding; 0 while the element is not laid out. */
+  const inner = () => {
+    const cs = getComputedStyle(el);
+    return el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  };
+  const build = (width: number) => {
+    const cell = (Math.max(320, width) - gap * (columns - 1)) / columns;
+    return spec.views.map((view, i) => {
+      const span = Math.min(columns, view.span ?? 1);
+      const make = BUILDERS[view.type] as (ctx: ViewContext) => Panel;
+      const panel = make({ view, table, engine, alloc: allocations[i]!, width: cell * span + gap * (span - 1) - 2, titleOf });
+      panel.el.style.gridColumn = `span ${span}`;
+      grid.append(panel.el);
+      return panel;
+    });
+  };
+  let builtWidth = inner() || 960;
+  let panels = build(builtWidth);
+
+  // Views are drawn for a width, so a container that changes width (a resized window, a
+  // notebook output that is laid out after the views were built) gets them drawn again.
+  // Brushes do not survive that, so the filters are cleared with them.
+  let relayout = 0;
+  const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(() => {
+    const width = inner();
+    if (width <= 0 || Math.abs(width - builtWidth) < 20) return;
+    clearTimeout(relayout);
+    relayout = window.setTimeout(() => {
+      builtWidth = inner();
+      for (const dim of [...engine.filters.keys()]) engine.filter({ dim, clear: true });
+      panels.forEach((p) => p.destroy());
+      grid.replaceChildren();
+      panels = build(builtWidth);
+    }, 150);
   });
+  observer?.observe(el);
 
   const fmt = new Intl.NumberFormat();
   const report = (s: EngineState) => {
@@ -214,6 +256,8 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
       return out;
     },
     destroy() {
+      observer?.disconnect();
+      clearTimeout(relayout);
       engine.dispose();
       panels.forEach((p) => p.destroy());
       el.replaceChildren();

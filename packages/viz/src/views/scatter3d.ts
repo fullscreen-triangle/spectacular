@@ -2,7 +2,9 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { EngineState } from "../engine/client";
 import type { Scatter3DView } from "../spec";
-import { COLOR_GLSL, PALETTE, colorChannel, hexToRgb, numeric, pointAlpha, selectedScale, type Panel, type ViewContext } from "./common";
+import {
+  COLOR_GLSL, PALETTE, addKey, colorChannel, colorKey, hexToRgb, numeric, pointAlpha, selectedScale, type Panel, type ViewContext,
+} from "./common";
 
 const VERT = /* glsl */ `
 in float a_sel;
@@ -55,6 +57,7 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.setSize(ctx.width, height);
   root.append(renderer.domElement, legend);
+  addKey(root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : ""));
 
   const n = table.rows;
   const cols = [numeric(table, view.x), numeric(table, view.y), numeric(table, view.z)];
