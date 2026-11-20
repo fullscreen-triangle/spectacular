@@ -22,6 +22,7 @@
     "test:python": "python -m pytest python/tests -q",
     "test:jupyter": "node python/tests/jupyter.mjs",
     "build:native": "cargo build --release -p spectacular",
-    "test:conformance": "node cli/conformance.mjs"
+    "test:conformance": "node cli/conformance.mjs",
+    "test:views": "node cli/views.mjs"
   }
 }

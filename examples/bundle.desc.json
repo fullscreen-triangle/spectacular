@@ -1,0 +1,27 @@
+{
+  "title": "How the rows of a bundle divide",
+  "data": "bundle.rows.json",
+  "key": "row",
+  "columns": 3,
+  "categorical": ["row", "record", "value"],
+  "domains": {
+    "way": ["stated", "supplied", "in-place", "tool", "rule", "node", "asked", "held"],
+    "outcome": ["published", "empty", "open", "missing", "blocked", "defect", "not-asked"]
+  },
+  "palettes": {
+    "outcome": {
+      "published": "#1baf7a", "empty": "#c3c2b7", "open": "#6250d6", "missing": "#eda100",
+      "blocked": "#e15759", "defect": "#e87ba4", "not-asked": "#9aa0ae"
+    }
+  },
+  "labels": { "way": "way the slot got its value", "margin": "margin (nats)", "low": "low end", "high": "high end" },
+  "charts": [
+    { "x": "way", "color": "outcome", "title": "Each way, split into outcomes", "wide": true },
+    { "from": "way", "to": "outcome", "title": "Way to outcome" },
+    { "x": "outcome", "y": "margin", "title": "Margins by outcome" },
+    { "x": "label", "y": "blocker", "title": "Refusals: label by blocker" },
+    { "low": "low", "high": "high", "y": "slot", "color": "outcome", "scale": "each", "title": "Quantities from low end to high end, each slot on its own scale", "wide": true },
+    { "x": "sources", "y": "margin", "color": "outcome" },
+    { "x": "step" }
+  ]
+}

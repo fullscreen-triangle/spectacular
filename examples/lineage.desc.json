@@ -1,0 +1,11 @@
+{
+  "title": "Rows passing from step to step",
+  "data": "bundle.lineage.csv",
+  "columns": 2,
+  "domains": { "step": ["parse", "resolve", "measure", "decide", "publish"] },
+  "charts": [
+    { "from": "from_step", "to": "step", "type": "layers", "title": "The steps, left to right", "wide": true },
+    { "x": "slot" },
+    { "x": "from_step", "y": "step", "title": "From step, to step" }
+  ]
+}
