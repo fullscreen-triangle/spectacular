@@ -1,7 +1,7 @@
 import { axisBottom, axisLeft, max, scaleBand, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import type { BarsView } from "../spec";
-import { MARGIN, PALETTE, categorical, clip, elastic, frame, tickFormat, type Panel, type ViewContext } from "./common";
+import { MARGIN, categorical, clip, elastic, frame, paletteOf, tickFormat, type Panel, type ViewContext } from "./common";
 
 /**
  * Horizontal bars per category. Clicking toggles a category in this view's filter. As in
@@ -11,6 +11,7 @@ import { MARGIN, PALETTE, categorical, clip, elastic, frame, tickFormat, type Pa
 export function bars(ctx: ViewContext<BarsView>): Panel {
   const { view, table, engine, alloc } = ctx;
   const col = categorical(table, view.field);
+  const palette = paletteOf(view);
   const group = alloc.group!;
   const f = frame(ctx, view.height ?? Math.min(420, Math.max(120, col.labels.length * 22)));
   const labelWidth = Math.min(160, 8 + 7 * Math.max(...col.labels.map((l) => l.length)));
@@ -40,7 +41,7 @@ export function bars(ctx: ViewContext<BarsView>): Panel {
     .append("rect")
     .attr("class", "sv-focus")
     .attr("height", yb.bandwidth())
-    .attr("fill", (i) => PALETTE[i % PALETTE.length]!);
+    .attr("fill", (i) => palette[i % palette.length]!);
 
   const paint = (state: EngineState) => {
     const counts = state.counts[group]!;

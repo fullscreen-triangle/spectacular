@@ -1,4 +1,4 @@
-import { axisBottom, axisLeft, format, interpolateViridis, schemeTableau10, select, type NumberValue, type ScaleLinear, type Selection } from "d3";
+import { axisBottom, axisLeft, color as d3color, format, interpolateViridis, schemeTableau10, select, type NumberValue, type ScaleLinear, type Selection } from "d3";
 import type { Column, Table } from "../data";
 import type { Engine, EngineState } from "../engine/client";
 import type { View } from "../spec";
@@ -34,6 +34,21 @@ export interface ViewContext<V extends View = View> {
 // Room for tick labels plus an axis title on the bottom and left.
 export const MARGIN = { top: 10, right: 16, bottom: 42, left: 62 };
 export const PALETTE = schemeTableau10;
+
+/** A view's category colours as hex, from its `palette` or Tableau 10. */
+export function paletteOf(view: { palette?: string[] }): string[] {
+  return view.palette?.length ? view.palette.map(hex) : [...PALETTE];
+}
+
+/** Any colour the spec accepts, as "#rrggbb". */
+export function hex(c: string): string {
+  return d3color(c)?.formatHex() ?? c;
+}
+
+/** Ten shader colours from a palette, repeating it. */
+export function shaderPalette(palette: string[]): number[] {
+  return Array.from({ length: 10 }, (_, i) => hexToRgb(palette[i % palette.length]!)).flat();
+}
 
 export interface Frame {
   root: HTMLDivElement;
@@ -159,7 +174,7 @@ export function yAxis(f: Frame, scale: ScaleLinear<number, number>, count = yTic
  * The colour key for a point view coloured by `field`: swatches for a nominal field, a
  * viridis bar for a quantitative one. It is HTML and inline SVG, so SVG export keeps it.
  */
-export function colorKey(table: Table, field: string | undefined, title: string): HTMLElement | null {
+export function colorKey(table: Table, field: string | undefined, title: string, palette: string[] = [...PALETTE]): HTMLElement | null {
   if (!field) return null;
   const c = table.columns.get(field);
   if (!c) return null;
@@ -176,7 +191,7 @@ export function colorKey(table: Table, field: string | undefined, title: string)
       item.className = "sv-key-item";
       const sw = document.createElement("span");
       sw.className = "sv-swatch";
-      sw.style.backgroundColor = PALETTE[i % PALETTE.length]!;
+      sw.style.backgroundColor = palette[i % palette.length]!;
       item.append(sw, document.createTextNode(label === "" ? "(empty)" : label));
       key.append(item);
     });
@@ -240,12 +255,12 @@ export function hexToRgb(hex: string): [number, number, number] {
 }
 
 /** Colour attribute for a point view: palette index for nominal, 0..1 for quantitative. */
-export function colorChannel(table: Table, field: string | undefined): { mode: 0 | 1 | 2; data: Float32Array } {
+export function colorChannel(table: Table, field: string | undefined, colors = PALETTE.length): { mode: 0 | 1 | 2; data: Float32Array } {
   const n = table.rows;
   if (!field) return { mode: 0, data: new Float32Array(n) };
   const c = table.columns.get(field);
   if (!c) throw new Error(`no field "${field}"`);
-  if (c.type === "nominal") return { mode: 1, data: Float32Array.from(c.codes, (k) => k % PALETTE.length) };
+  if (c.type === "nominal") return { mode: 1, data: Float32Array.from(c.codes, (k) => k % colors) };
   const [lo, hi] = c.extent;
   const span = hi > lo ? hi - lo : 1;
   return { mode: 2, data: Float32Array.from(c.values, (v) => (Number.isNaN(v) ? 0 : (v - lo) / span)) };

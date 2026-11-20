@@ -3,7 +3,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { EngineState } from "../engine/client";
 import type { Scatter3DView } from "../spec";
 import {
-  COLOR_GLSL, PALETTE, addKey, colorChannel, colorKey, hexToRgb, numeric, pointAlpha, selectedScale, type Panel, type ViewContext,
+  COLOR_GLSL, addKey, colorChannel, colorKey, hex, hexToRgb, numeric, paletteOf, pointAlpha, selectedScale, shaderPalette,
+  type Panel, type ViewContext,
 } from "./common";
 
 const VERT = /* glsl */ `
@@ -57,7 +58,9 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.setSize(ctx.width, height);
   root.append(renderer.domElement, legend);
-  addKey(root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : ""));
+  const palette = paletteOf(view);
+  const base = view.fill ? hex(view.fill) : palette[0]!;
+  addKey(root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : "", palette));
 
   const n = table.rows;
   const cols = [numeric(table, view.x), numeric(table, view.y), numeric(table, view.z)];
@@ -69,7 +72,7 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const color = colorChannel(table, view.color);
+  const color = colorChannel(table, view.color, palette.length);
   geometry.setAttribute("a_c", new THREE.BufferAttribute(color.data, 1));
   const sel = new THREE.BufferAttribute(engine.state.mask.slice(), 1, false); // 0/1, not normalised
   sel.setUsage(THREE.DynamicDrawUsage);
@@ -82,8 +85,8 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
     u_dimAlpha: { value: Math.min(0.1, pointAlpha(n)) },
     u_selScale: { value: selectedScale(engine.state.selectedCount, n) },
     u_colorMode: { value: color.mode },
-    u_palette: { value: PALETTE.map((h) => new THREE.Vector3(...hexToRgb(h))) },
-    u_base: { value: new THREE.Vector3(...hexToRgb(PALETTE[0]!)) },
+    u_palette: { value: Array.from({ length: 10 }, (_, i) => new THREE.Vector3(...shaderPalette(palette).slice(i * 3, i * 3 + 3))) },
+    u_base: { value: new THREE.Vector3(...hexToRgb(base)) },
   };
   const material = (pass: number) =>
     new THREE.ShaderMaterial({

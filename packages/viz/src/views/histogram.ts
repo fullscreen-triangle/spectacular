@@ -1,7 +1,7 @@
 import { brushX, max, scaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import type { HistogramView } from "../spec";
-import { axisLabels, clip, elastic, frame, xAxis, yAxis, type Panel, type ViewContext } from "./common";
+import { axisLabels, clip, elastic, frame, hex, xAxis, yAxis, type Panel, type ViewContext } from "./common";
 
 /**
  * Bars show rows passing every *other* filter; the light bars behind them show the
@@ -33,6 +33,7 @@ export function histogram(ctx: ViewContext<HistogramView>): Panel {
       .attr("width", bw);
   const context = bars("sv-context", engine.state.baseline[group]!);
   const focus = bars("sv-focus", engine.state.counts[group]!);
+  if (view.fill) focus.style("fill", hex(view.fill));
 
   const paint = (state: EngineState) => {
     const counts = state.counts[group]!;

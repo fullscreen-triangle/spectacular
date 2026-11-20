@@ -29,6 +29,7 @@ export const STYLE = /* css */ `
   --sv-fg: #111; --sv-muted: #333; --sv-axis: #333; --sv-grid: #eeeeee;
 }
 .sv-root *, .sv-root *::before, .sv-root *::after { box-sizing: border-box; }
+.sv-figure .sv-status, .sv-figure .sv-hint { display: none; }
 .sv-heading { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
 .sv-status { color: var(--sv-muted); margin: 0 0 10px; font-variant-numeric: tabular-nums; }
 .sv-grid { display: grid; gap: 12px; }

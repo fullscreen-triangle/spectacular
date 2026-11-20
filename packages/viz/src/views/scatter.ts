@@ -3,7 +3,7 @@ import type { EngineState } from "../engine/client";
 import { SVG_NS } from "../export";
 import type { ScatterView } from "../spec";
 import {
-  COLOR_GLSL, PALETTE, addKey, axisLabels, centred, colorChannel, colorKey, frame, hexToRgb, numeric, pointAlpha, selectedScale,
+  COLOR_GLSL, addKey, axisLabels, centred, colorChannel, colorKey, frame, hex, hexToRgb, numeric, paletteOf, pointAlpha, selectedScale, shaderPalette,
   xAxis, yAxis,
   type Panel, type ViewContext,
 } from "./common";
@@ -68,7 +68,9 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   xAxis(f, x);
   yAxis(f, y);
   axisLabels(f, ctx.titleOf(view.x), ctx.titleOf(view.y));
-  addKey(f.root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : ""));
+  const palette = paletteOf(view);
+  const base = view.fill ? hex(view.fill) : palette[0]!;
+  addKey(f.root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : "", palette));
 
   const canvas = document.createElement("canvas");
   const dpr = window.devicePixelRatio || 1;
@@ -96,7 +98,7 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   const px = centred(xs.values, xs.extent), py = centred(ys.values, ys.extent);
   attr("a_x", px.data, gl.FLOAT);
   attr("a_y", py.data, gl.FLOAT);
-  const color = colorChannel(table, view.color);
+  const color = colorChannel(table, view.color, palette.length);
   attr("a_c", color.data, gl.FLOAT);
   const selBuf = attr("a_sel", engine.state.mask, gl.UNSIGNED_BYTE); // 0/1, not normalised
 
@@ -109,8 +111,8 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   const size = view.pointSize ?? (table.rows > 200_000 ? 2 : 4); // diameter in CSS px
   gl.uniform1f(u("u_size"), size * dpr);
   gl.uniform1i(u("u_colorMode"), color.mode);
-  gl.uniform3fv(u("u_palette"), PALETTE.flatMap(hexToRgb));
-  gl.uniform3fv(u("u_base"), hexToRgb(PALETTE[0]!));
+  gl.uniform3fv(u("u_palette"), shaderPalette(palette));
+  gl.uniform3fv(u("u_base"), hexToRgb(base));
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -151,7 +153,7 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
     const s = engine.state;
     const content = document.createElementNS(SVG_NS, "g");
     const fillOf = (i: number) =>
-      color.mode === 1 ? PALETTE[color.data[i]!]! : color.mode === 2 ? interpolateViridis(color.data[i]!) : PALETTE[0]!;
+      color.mode === 1 ? palette[color.data[i]!]! : color.mode === 2 ? interpolateViridis(color.data[i]!) : base;
     const passes = [
       { sel: 0, r: Math.max(1, size * dpr - 1) / dpr / 2, alpha: Math.min(0.15, pointAlpha(s.rows)), fill: () => "rgb(140,140,153)" },
       { sel: 1, r: (size * selectedScale(s.selectedCount, s.rows)) / 2, alpha: pointAlpha(s.selectedCount), fill: fillOf },

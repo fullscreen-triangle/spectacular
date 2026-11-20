@@ -7,6 +7,8 @@
  * what is wrong with one that does not hold.
  */
 
+import { MAX_PALETTE, isColor } from "./colors.ts";
+
 export const SPEC_VERSION = "spectacular/v0";
 
 export type FieldType = "quantitative" | "nominal";
@@ -40,7 +42,15 @@ interface ViewBase {
   span?: number;
 }
 
-export interface ScatterView extends ViewBase {
+/** Colours a view may set: one for all its marks, or one per category. */
+interface Colors {
+  /** One colour for the marks when no `color` field is given: "#rrggbb", "#rgb" or a CSS name. */
+  fill?: string;
+  /** Category colours, in order of first appearance (1 to 10; they repeat). */
+  palette?: string[];
+}
+
+export interface ScatterView extends ViewBase, Colors {
   type: "scatter";
   x: string;
   y: string;
@@ -52,6 +62,7 @@ export interface ScatterView extends ViewBase {
 
 export interface HistogramView extends ViewBase {
   type: "histogram";
+  fill?: string;
   field: string;
   bins?: number;
   brush?: "x" | "none";
@@ -59,6 +70,7 @@ export interface HistogramView extends ViewBase {
 
 export interface BarsView extends ViewBase {
   type: "bars";
+  palette?: string[];
   field: string;
   /** "select" toggles categories in the filter by clicking. */
   brush?: "select" | "none";
@@ -71,7 +83,7 @@ export interface DensityView extends ViewBase {
   bins?: [number, number];
 }
 
-export interface Scatter3DView extends ViewBase {
+export interface Scatter3DView extends ViewBase, Colors {
   type: "scatter3d";
   x: string;
   y: string;
@@ -185,11 +197,11 @@ const BRUSHES: Record<ViewType, string[]> = {
 
 const COMMON_VIEW_KEYS = ["id", "type", "title", "height", "span"];
 const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
-  scatter: ["brush", "pointSize"],
-  histogram: ["brush", "bins"],
-  bars: ["brush"],
+  scatter: ["brush", "pointSize", "fill", "palette"],
+  histogram: ["brush", "bins", "fill"],
+  bars: ["brush", "palette"],
   density: ["bins"],
-  scatter3d: ["pointSize"],
+  scatter3d: ["pointSize", "fill", "palette"],
   arc: ["brush", "order"],
   sankey: ["brush"],
   network3d: ["brush"],
@@ -200,6 +212,7 @@ const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], colum
 const DATA_FORMATS: DataFormat[] = ["csv", "tsv", "json"];
 const FIGURE_FORMATS: FigureOutput["format"][] = ["svg", "pdf", "png"];
 const FIGURE_UNITS = ["mm", "in", "px"];
+const COLOR_RULE = 'a colour: "#rrggbb", "#rgb" or a CSS colour name such as "steelblue"';
 
 function distance(a: string, b: string): number {
   const d = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -341,6 +354,12 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     }
     if (v.order !== undefined && !["count", "name", "data"].includes(v.order as string))
       bad(`${at}/order`, "one of count, name, data");
+    if (v.fill !== undefined && !isColor(v.fill)) bad(`${at}/fill`, COLOR_RULE);
+    if (v.palette !== undefined) {
+      if (!Array.isArray(v.palette) || v.palette.length < 1 || v.palette.length > MAX_PALETTE)
+        bad(`${at}/palette`, `a list of 1 to ${MAX_PALETTE} colours`);
+      else v.palette.forEach((c, k) => { if (!isColor(c)) bad(`${at}/palette/${k}`, COLOR_RULE); });
+    }
     for (const key of ["height", "span", "pointSize"] as const)
       if (v[key] !== undefined && !(typeof v[key] === "number" && (v[key] as number) > 0)) bad(`${at}/${key}`, "must be a positive number");
   });
@@ -390,11 +409,14 @@ export function jsonSchema(): Record<string, unknown> {
   const str = { type: "string" };
   const field = { type: "string", minLength: 1, description: "the name of a field in the data" };
   const positive = { type: "number", exclusiveMinimum: 0 };
+  const color = { type: "string", description: "a colour: #rrggbb, #rgb or a CSS colour name" };
   const extras: Record<string, Record<string, unknown>> = {
     brush: {},
     pointSize: positive,
     bins: { type: "integer", minimum: 1, maximum: 10_000 },
     order: { enum: ["count", "name", "data"] },
+    fill: color,
+    palette: { type: "array", items: color, minItems: 1, maxItems: MAX_PALETTE },
   };
   const view = (type: ViewType) => {
     const { required, optional } = VIEW_FIELDS[type];

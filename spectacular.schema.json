@@ -156,6 +156,19 @@
               "pointSize": {
                 "type": "number",
                 "exclusiveMinimum": 0
+              },
+              "fill": {
+                "type": "string",
+                "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+              },
+              "palette": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 10
               }
             },
             "additionalProperties": false
@@ -201,6 +214,10 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10000
+              },
+              "fill": {
+                "type": "string",
+                "description": "a colour: #rrggbb, #rgb or a CSS colour name"
               }
             },
             "additionalProperties": false
@@ -241,6 +258,15 @@
                   "select",
                   "none"
                 ]
+              },
+              "palette": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 10
               }
             },
             "additionalProperties": false
@@ -346,6 +372,19 @@
               "pointSize": {
                 "type": "number",
                 "exclusiveMinimum": 0
+              },
+              "fill": {
+                "type": "string",
+                "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+              },
+              "palette": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 10
               }
             },
             "additionalProperties": false
