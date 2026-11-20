@@ -57,7 +57,7 @@ function problemBox(problems: Problem[]): HTMLElement {
   const box = document.createElement("div");
   box.className = "sv-problems";
   const head = document.createElement("b");
-  head.textContent = problems.length === 1 ? "The spec has a problem" : `The spec has ${problems.length} problems`;
+  head.textContent = `The charts were not drawn: ${problems.length === 1 ? "1 problem" : `${problems.length} problems`}`;
   box.append(head);
   for (const p of problems) {
     const line = document.createElement("div");
@@ -132,6 +132,12 @@ function render({ model, el }: { model: Model; el: HTMLElement }) {
     const mine = ++generation;
     handle?.destroy();
     handle = undefined;
+    // A description Python's compiler refused arrives as problems with no spec.
+    const refused = model.get("problems") as Problem[] | undefined;
+    if (!model.get("spec")?.views && refused?.length) {
+      el.replaceChildren(problemBox(refused));
+      return;
+    }
     const result = await show(el, { spec: model.get("spec"), columns: model.get("columns"), file: model.get("file") });
     if (mine !== generation) return result.handle?.destroy();
     handle = result.handle;
@@ -193,6 +199,8 @@ function unwrap(value: unknown): unknown {
  * anywidget show it), the frame is resized to fit the views.
  */
 export async function boot(el: HTMLElement, payload: unknown) {
+  // A figure (for spectacular.render) leaves out the status line and interaction hints.
+  if ((payload as { figure?: boolean })?.figure) el.classList.add("sv-figure");
   const result = await show(el, unwrap(payload) as Payload);
   let frame: HTMLElement | null = null;
   try {
