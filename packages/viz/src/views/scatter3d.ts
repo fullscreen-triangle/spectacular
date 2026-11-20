@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { EngineState } from "../engine/client";
 import type { Scatter3DView } from "../spec";
 import {
-  COLOR_GLSL, addKey, colorChannel, colorKey, hex, hexToRgb, numeric, paletteOf, pointAlpha, selectedScale, shaderPalette,
+  COLOR_GLSL, addKey, colorChannel, colorKey, colorsFor, hex, hexToRgb, numeric, pointAlpha, SHADER_COLORS, selectedScale, shaderPalette,
   type Panel, type ViewContext,
 } from "./common";
 
@@ -58,7 +58,7 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.setSize(ctx.width, height);
   root.append(renderer.domElement, legend);
-  const palette = paletteOf(view);
+  const palette = colorsFor(ctx, view.color, view);
   const base = view.fill ? hex(view.fill) : palette[0]!;
   addKey(root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : "", palette));
 
@@ -72,7 +72,7 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
   });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const color = colorChannel(table, view.color, palette.length);
+  const color = colorChannel(table, view.color, Math.min(palette.length, SHADER_COLORS));
   geometry.setAttribute("a_c", new THREE.BufferAttribute(color.data, 1));
   const sel = new THREE.BufferAttribute(engine.state.mask.slice(), 1, false); // 0/1, not normalised
   sel.setUsage(THREE.DynamicDrawUsage);
@@ -85,7 +85,7 @@ export function scatter3d(ctx: ViewContext<Scatter3DView>): Panel {
     u_dimAlpha: { value: Math.min(0.1, pointAlpha(n)) },
     u_selScale: { value: selectedScale(engine.state.selectedCount, n) },
     u_colorMode: { value: color.mode },
-    u_palette: { value: Array.from({ length: 10 }, (_, i) => new THREE.Vector3(...shaderPalette(palette).slice(i * 3, i * 3 + 3))) },
+    u_palette: { value: Array.from({ length: SHADER_COLORS }, (_, i) => new THREE.Vector3(...shaderPalette(palette).slice(i * 3, i * 3 + 3))) },
     u_base: { value: new THREE.Vector3(...hexToRgb(base)) },
   };
   const material = (pass: number) =>

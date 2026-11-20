@@ -95,10 +95,45 @@
           },
           "title": {
             "type": "string"
+          },
+          "domain": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "palette": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 32
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minProperties": 1,
+                "maxProperties": 32
+              }
+            ]
           }
         },
         "additionalProperties": false
       }
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "a field whose values identify rows"
     },
     "views": {
       "type": "array",
@@ -253,6 +288,11 @@
                 "minLength": 1,
                 "description": "the name of a field in the data"
               },
+              "color": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
               "brush": {
                 "enum": [
                   "select",
@@ -394,6 +434,195 @@
             "required": [
               "id",
               "type",
+              "x",
+              "y"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "strip"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "x": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "y": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "color": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "x",
+                  "none"
+                ]
+              },
+              "pointSize": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "fill": {
+                "type": "string",
+                "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+              },
+              "palette": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 10
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "x",
+              "y"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "matrix"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "x": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "y": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "select",
+                  "none"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "low",
+              "high"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "interval"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "low": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "high": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "color": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "x",
+                  "none"
+                ]
+              },
+              "scale": {
+                "enum": [
+                  "shared",
+                  "label"
+                ]
+              },
+              "fill": {
+                "type": "string",
+                "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+              },
+              "palette": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "a colour: #rrggbb, #rgb or a CSS colour name"
+                },
+                "minItems": 1,
+                "maxItems": 10
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
               "source",
               "target"
             ],
@@ -503,6 +732,52 @@
               },
               "type": {
                 "const": "network3d"
+              },
+              "title": {
+                "type": "string"
+              },
+              "height": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "span": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the name of a field in the data"
+              },
+              "brush": {
+                "enum": [
+                  "select",
+                  "none"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "source",
+              "target"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "layers"
               },
               "title": {
                 "type": "string"

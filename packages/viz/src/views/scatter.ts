@@ -1,11 +1,11 @@
-import { brush, interpolateViridis, scaleLinear } from "d3";
+import { brush, interpolateViridis, scaleLinear, type ScaleLinear } from "d3";
 import type { EngineState } from "../engine/client";
 import { SVG_NS } from "../export";
-import type { ScatterView } from "../spec";
+import type { ScatterView, View } from "../spec";
 import {
-  COLOR_GLSL, addKey, axisLabels, centred, colorChannel, colorKey, frame, hex, hexToRgb, numeric, paletteOf, pointAlpha, selectedScale, shaderPalette,
+  COLOR_GLSL, addKey, axisLabels, centred, colorChannel, colorKey, frame, colorsFor, hex, hexToRgb, numeric, pointAlpha, SHADER_COLORS, selectedScale, shaderPalette,
   xAxis, yAxis,
-  type Panel, type ViewContext,
+  type Frame, type Panel, type ViewContext,
 } from "./common";
 
 const VERT = /* glsl */ `#version 300 es
@@ -68,7 +68,37 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   xAxis(f, x);
   yAxis(f, y);
   axisLabels(f, ctx.titleOf(view.x), ctx.titleOf(view.y));
-  const palette = paletteOf(view);
+  const layer = pointLayer(ctx, f, xs.values, ys.values, x, y);
+
+  if ((view.brush ?? "xy") === "xy") {
+    const dx = alloc.dims[view.x]!, dy = alloc.dims[view.y]!;
+    const b = brush().extent([[0, 0], [f.w, f.h]]).on("brush end", (event) => {
+      const s = event.selection as [[number, number], [number, number]] | null;
+      if (!s) {
+        engine.filter({ dim: dx, clear: true });
+        engine.filter({ dim: dy, clear: true });
+        return;
+      }
+      engine.filter({ dim: dx, range: [x.invert(s[0][0]), x.invert(s[1][0])] });
+      engine.filter({ dim: dy, range: [y.invert(s[1][1]), y.invert(s[0][1])] });
+    });
+    f.g.append("g").attr("class", "sv-brush").call(b);
+  }
+  return { el: f.root, update: layer.draw, vector: layer.vector, destroy: layer.destroy };
+}
+
+/** The views that draw rows as points, and the properties the point layer reads. */
+type PointView = View & { color?: string; fill?: string; palette?: string[]; pointSize?: number };
+
+/**
+ * Rows as points in a frame, at `xv`/`yv` through the scales `x`/`y`, drawn by WebGL in
+ * two passes (rows outside the selection in grey, then the selection in colour), with
+ * the colour key and vector content for SVG export. The scatter and strip views share it.
+ */
+export function pointLayer(ctx: ViewContext<PointView>, f: Frame, xv: Float64Array, yv: Float64Array,
+  x: ScaleLinear<number, number>, y: ScaleLinear<number, number>) {
+  const { view, table, engine } = ctx;
+  const palette = colorsFor(ctx, view.color, view);
   const base = view.fill ? hex(view.fill) : palette[0]!;
   addKey(f.root, colorKey(table, view.color, view.color ? ctx.titleOf(view.color) : "", palette));
 
@@ -95,19 +125,20 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
     gl.vertexAttribPointer(loc, 1, type, normalized, 0, 0);
     return buf;
   };
-  const px = centred(xs.values, xs.extent), py = centred(ys.values, ys.extent);
+  const [x0, x1] = x.domain() as [number, number], [y0, y1] = y.domain() as [number, number];
+  const px = centred(xv, [x0, x1]), py = centred(yv, [y0, y1]);
   attr("a_x", px.data, gl.FLOAT);
   attr("a_y", py.data, gl.FLOAT);
-  const color = colorChannel(table, view.color, palette.length);
+  const color = colorChannel(table, view.color, Math.min(palette.length, SHADER_COLORS));
   attr("a_c", color.data, gl.FLOAT);
   const selBuf = attr("a_sel", engine.state.mask, gl.UNSIGNED_BYTE); // 0/1, not normalised
 
-  // Map centred data to clip space through the (niced) scale domains.
-  const [x0, x1] = x.domain() as [number, number], [y0, y1] = y.domain() as [number, number];
+  // Map centred data to clip space through the scale domains (a scale may run downwards).
   const sx = 2 / (x1 - x0), sy = 2 / (y1 - y0);
+  const flip = y(y0) < y(y1) ? -1 : 1; // a band axis puts its first category at the top
   const u = (n: string) => gl.getUniformLocation(prog, n);
-  gl.uniform2f(u("u_scale"), sx, sy);
-  gl.uniform2f(u("u_offset"), (px.centre - x0) * sx - 1, (py.centre - y0) * sy - 1);
+  gl.uniform2f(u("u_scale"), sx, sy * flip);
+  gl.uniform2f(u("u_offset"), (px.centre - x0) * sx - 1, flip * ((py.centre - y0) * sy - 1));
   const size = view.pointSize ?? (table.rows > 200_000 ? 2 : 4); // diameter in CSS px
   gl.uniform1f(u("u_size"), size * dpr);
   gl.uniform1i(u("u_colorMode"), color.mode);
@@ -132,21 +163,6 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
   };
   draw(engine.state);
 
-  if ((view.brush ?? "xy") === "xy") {
-    const dx = alloc.dims[view.x]!, dy = alloc.dims[view.y]!;
-    const b = brush().extent([[0, 0], [f.w, f.h]]).on("brush end", (event) => {
-      const s = event.selection as [[number, number], [number, number]] | null;
-      if (!s) {
-        engine.filter({ dim: dx, clear: true });
-        engine.filter({ dim: dy, clear: true });
-        return;
-      }
-      engine.filter({ dim: dx, range: [x.invert(s[0][0]), x.invert(s[1][0])] });
-      engine.filter({ dim: dy, range: [y.invert(s[1][1]), y.invert(s[0][1])] });
-    });
-    f.g.append("g").attr("class", "sv-brush").call(b);
-  }
-
   /** The same two passes as the shader: unselected rows in grey, then selected ones. */
   const vector = () => {
     if (table.rows > VECTOR_POINTS) return undefined;
@@ -161,7 +177,7 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
     for (const pass of passes) {
       const groups = new Map<string, SVGGElement>();
       for (let i = 0; i < table.rows; i++) {
-        const vx = xs.values[i]!, vy = ys.values[i]!;
+        const vx = xv[i]!, vy = yv[i]!;
         if (s.mask[i] !== pass.sel || Number.isNaN(vx) || Number.isNaN(vy)) continue;
         const fill = pass.fill(i);
         let g = groups.get(fill);
@@ -182,10 +198,5 @@ export function scatter(ctx: ViewContext<ScatterView>): Panel {
     return { plot: f.plot, content };
   };
 
-  return {
-    el: f.root,
-    update: draw,
-    vector,
-    destroy: () => gl.getExtension("WEBGL_lose_context")?.loseContext(),
-  };
+  return { draw, vector, destroy: () => void gl.getExtension("WEBGL_lose_context")?.loseContext() };
 }

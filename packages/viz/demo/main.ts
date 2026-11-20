@@ -46,14 +46,19 @@ if (params.has("figure")) document.body.classList.add("figure");
  * which prints them for the program that started it, and reload when the spec or its
  * data file changes on disk.
  */
-function connect(h: Handle, base: URL) {
+function connect(h: Handle, base: URL, keyed: boolean) {
   const indices = params.has("indices");
   new EventSource(new URL("__spectacular/events", base)).addEventListener("reload", () => location.reload());
   let timer = 0;
   h.onUpdate(() => {
     clearTimeout(timer);
     timer = window.setTimeout(() => {
-      const body = indices ? { ...h.selection(), indices: Array.from(h.selectedRows()) } : h.selection();
+      const body = {
+        ...h.selection(),
+        ...(indices ? { indices: Array.from(h.selectedRows()) } : {}),
+        // With a key, the rows are named by it as well.
+        ...(keyed ? { keys: h.selectedKeys() } : {}),
+      };
       fetch(new URL("__spectacular/selection", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
         .catch(() => {}); // the program may have stopped serving; the page still works
     }, 150);
@@ -73,7 +78,7 @@ if (specUrl) {
       return mount(app, s).then((h) => {
         note.textContent = `${base.pathname} · ${h.table.rows.toLocaleString()} rows · loaded and indexed in ${(performance.now() - t0).toFixed(0)} ms`;
         expose(h);
-        if (params.has("channel")) connect(h, base);
+        if (params.has("channel")) connect(h, base, !!s.key);
         settle("ready");
       });
     })

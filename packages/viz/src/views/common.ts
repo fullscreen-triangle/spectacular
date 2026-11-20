@@ -1,7 +1,7 @@
 import { axisBottom, axisLeft, color as d3color, format, interpolateViridis, schemeTableau10, select, type NumberValue, type ScaleLinear, type Selection } from "d3";
 import type { Column, Table } from "../data";
 import type { Engine, EngineState } from "../engine/client";
-import type { View } from "../spec";
+import type { FieldDef, View } from "../spec";
 
 export interface Panel {
   readonly el: HTMLElement;
@@ -20,6 +20,8 @@ export interface Allocation {
   group?: number;
   /** For edge views: the pairs their one dimension filters on. */
   pairs?: Pairs;
+  /** For bars split by a second field, and the matrix: the pairs their dimension holds. */
+  cross?: CrossPairs;
 }
 
 export interface ViewContext<V extends View = View> {
@@ -29,6 +31,8 @@ export interface ViewContext<V extends View = View> {
   alloc: Allocation;
   width: number;
   titleOf(field: string): string;
+  /** The spec's definition of a field, for its domain and palette. */
+  fieldDef(field: string): FieldDef | undefined;
 }
 
 // Room for tick labels plus an axis title on the bottom and left.
@@ -40,6 +44,27 @@ export function paletteOf(view: { palette?: string[] }): string[] {
   return view.palette?.length ? view.palette.map(hex) : [...PALETTE];
 }
 
+/**
+ * The colours of a nominal field's categories in one view, aligned with the column's
+ * labels: the view's own `palette`, else the field's (a list in label order, or colours
+ * by name, with unnamed categories taking the default colours in turn), else Tableau 10.
+ * Colours belong to categories, so one keeps its colour while filters remove others.
+ */
+export function colorsFor(ctx: Pick<ViewContext, "table" | "fieldDef">, field: string | undefined, view: { palette?: string[] } = {}): string[] {
+  if (view.palette?.length) return view.palette.map(hex);
+  const c = field ? ctx.table.columns.get(field) : undefined;
+  const declared = field ? ctx.fieldDef(field)?.palette : undefined;
+  if (!declared || c?.type !== "nominal") return [...PALETTE];
+  if (Array.isArray(declared)) return declared.map(hex);
+  let next = 0;
+  return c.labels.map((l) => (declared[l] ? hex(declared[l]) : PALETTE[next++ % PALETTE.length]!));
+}
+
+/** True when a field declares its own colours, so views that draw it should use them. */
+export function hasFieldColors(ctx: Pick<ViewContext, "fieldDef">, field: string | undefined): boolean {
+  return !!field && ctx.fieldDef(field)?.palette !== undefined;
+}
+
 /** Any colour the spec accepts, as "#rrggbb". */
 export function hex(c: string): string {
   return d3color(c)?.formatHex() ?? c;
@@ -47,8 +72,11 @@ export function hex(c: string): string {
 
 /** Ten shader colours from a palette, repeating it. */
 export function shaderPalette(palette: string[]): number[] {
-  return Array.from({ length: 10 }, (_, i) => hexToRgb(palette[i % palette.length]!)).flat();
+  return Array.from({ length: SHADER_COLORS }, (_, i) => hexToRgb(palette[i % palette.length]!)).flat();
 }
+
+/** Colours the point shaders hold; a field's palette may name this many categories. */
+export const SHADER_COLORS = 32;
 
 export interface Frame {
   root: HTMLDivElement;
@@ -116,6 +144,25 @@ export function clip(f: Pick<Frame, "svg" | "w" | "h">): string {
   const id = `sv-clip-${++clips}`;
   f.svg.append("defs").append("clipPath").attr("id", id).append("rect").attr("width", f.w).attr("height", f.h);
   return id;
+}
+
+/**
+ * Moves a frame's plot area right to `left` pixels from the panel's edge, for category
+ * labels wider than the usual margin, and returns the frame with its narrower width.
+ */
+export function shiftLeft(f: Frame, left: number): Frame {
+  const w = Math.max(80, f.w - (left - MARGIN.left));
+  f.g.attr("transform", `translate(${left},${MARGIN.top})`);
+  f.under.attr("transform", `translate(${left},${MARGIN.top})`);
+  Object.assign(f.plot.style, { left: `${left}px`, width: `${w}px` });
+  return { ...f, w };
+}
+
+/** Room for category labels: about 7 px a character, between 60 and 160. */
+export function labelRoom(labels: string[]): { width: number; short(l: string): string } {
+  const width = Math.max(60, Math.min(160, 14 + 7 * Math.max(0, ...labels.map((l) => l.length))));
+  const fit = Math.floor((width - 14) / 7);
+  return { width, short: (l) => (l.length <= fit ? l : "…" + l.slice(l.length - fit + 1)) };
 }
 
 /** Axis titles, centred along each axis, outside the tick labels. */
@@ -274,7 +321,7 @@ export function centred(values: Float64Array, extent: [number, number]): { data:
 
 export const COLOR_GLSL = /* glsl */ `
 uniform int u_colorMode;
-uniform vec3 u_palette[10];
+uniform vec3 u_palette[32];
 uniform vec3 u_base;
 vec3 viridis(float t) {
   t = clamp(t, 0.0, 1.0);
@@ -302,6 +349,39 @@ export interface Pairs {
   codes: Uint32Array;
   /** "source → target", per pair code, for selections reported in data terms. */
   labels: string[];
+}
+
+/**
+ * The pairs of two nominal fields that occur, for views that count and filter rows by
+ * both at once (bars split by a second field, the matrix). Unlike `edgePairs`, each
+ * field keeps its own categories: a pair is [code in `a`, code in `b`].
+ */
+export interface CrossPairs {
+  /** For each pair code, its [category of a, category of b]. */
+  pairs: [number, number][];
+  /** For each row, its pair code. */
+  codes: Uint32Array;
+  /** "a × b" labels, per pair code. */
+  labels: string[];
+}
+
+export function crossPairs(table: Table, a: string, b: string): CrossPairs {
+  const ca = categorical(table, a), cb = categorical(table, b);
+  const pairs: [number, number][] = [];
+  const pairOf = new Map<number, number>();
+  const codes = new Uint32Array(table.rows);
+  const nb = cb.labels.length;
+  for (let r = 0; r < table.rows; r++) {
+    const key = ca.codes[r]! * nb + cb.codes[r]!;
+    let k = pairOf.get(key);
+    if (k === undefined) {
+      k = pairs.length;
+      pairs.push([ca.codes[r]!, cb.codes[r]!]);
+      pairOf.set(key, k);
+    }
+    codes[r] = k;
+  }
+  return { pairs, codes, labels: pairs.map(([i, j]) => `${ca.labels[i]} × ${cb.labels[j]}`) };
 }
 
 export function edgePairs(table: Table, source: string, target: string): Pairs {

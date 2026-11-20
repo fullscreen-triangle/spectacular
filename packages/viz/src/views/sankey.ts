@@ -1,6 +1,6 @@
 import type { EngineState } from "../engine/client";
 import type { SankeyView } from "../spec";
-import { EdgeSelection, frame, incident, nodeTotals, tooltip, type Panel, type ViewContext } from "./common";
+import { EdgeSelection, colorsFor, frame, hasFieldColors, incident, nodeTotals, tooltip, type Panel, type ViewContext } from "./common";
 
 const NODE_W = 10;
 const GAP = 4;
@@ -19,12 +19,28 @@ export function sankey(ctx: ViewContext<SankeyView>): Panel {
   const tip = tooltip(f.root);
   const base = engine.state.baseline[group]!;
   const bt = nodeTotals(p, base);
-  const left = p.nodes.map((_, i) => i).filter((i) => bt.out[i]! > 0).sort((a, b) => bt.out[b]! - bt.out[a]!);
-  const right = p.nodes.map((_, i) => i).filter((i) => bt.into[i]! > 0).sort((a, b) => bt.into[b]! - bt.into[a]!);
+  // Nodes in their field's declared order, else largest first.
+  const order = (field: string, total: Float64Array) => {
+    const domain = ctx.fieldDef(field)?.domain;
+    const rank = new Map(Array.isArray(domain) ? domain.map((d, i) => [d, i]) : []);
+    const at = (i: number) => rank.get(p.nodes[i]!) ?? Infinity;
+    return (a: number, b: number) => at(a) - at(b) || total[b]! - total[a]!;
+  };
+  const left = p.nodes.map((_, i) => i).filter((i) => bt.out[i]! > 0).sort(order(view.source, bt.out));
+  const right = p.nodes.map((_, i) => i).filter((i) => bt.into[i]! > 0).sort(order(view.target, bt.into));
   const labelW = Math.min(150, Math.max(60, f.w * 0.22));
   const x0 = labelW, x1 = f.w - labelW;
   const sel = new EdgeSelection(engine, view.brush === "none" ? undefined : alloc.dims[Object.keys(alloc.dims)[0]!], () => paint(engine.state));
   const short = (s: string) => (s.length > 20 ? s.slice(0, 19) + "…" : s);
+  // Nodes take their field's declared colours: sources on the left, targets on the right.
+  const nodeColors = (field: string) => {
+    if (!hasFieldColors(ctx, field)) return () => null;
+    const col = ctx.table.columns.get(field);
+    const colors = colorsFor(ctx, field);
+    const byName = new Map(col?.type === "nominal" ? col.labels.map((l, i) => [l, colors[i % colors.length]!]) : []);
+    return (i: number) => byName.get(p.nodes[i]!) ?? null;
+  };
+  const leftColor = nodeColors(view.source), rightColor = nodeColors(view.target);
 
   const flowsG = f.g.append("g");
   const leftG = f.g.append("g");
@@ -89,7 +105,7 @@ export function sankey(ctx: ViewContext<SankeyView>): Panel {
         return n;
       });
       nodes.attr("transform", (i) => `translate(${isLeft ? x0 : x1},${col.top.get(i)})`);
-      nodes.select("rect").attr("height", (i) => col.h.get(i)!)
+      nodes.select("rect").attr("height", (i) => col.h.get(i)!).style("fill", isLeft ? leftColor : rightColor)
         .classed("sv-chosen", (i) => incident(p, i, isLeft ? "source" : "target").some((c) => sel.chosen.has(c)));
       nodes.select("text").attr("x", isLeft ? -6 : NODE_W + 6).attr("y", (i) => col.h.get(i)! / 2)
         .attr("text-anchor", isLeft ? "end" : "start").classed("sv-quiet", (i) => tot[i]! === 0).text((i) => short(p.nodes[i]!))

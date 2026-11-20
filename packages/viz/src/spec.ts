@@ -7,7 +7,7 @@
  * what is wrong with one that does not hold.
  */
 
-import { MAX_PALETTE, isColor } from "./colors.ts";
+import { MAX_FIELD_PALETTE, MAX_PALETTE, isColor } from "./colors.ts";
 
 export const SPEC_VERSION = "spectacular/v0";
 
@@ -17,6 +17,16 @@ export interface FieldDef {
   type?: FieldType;
   /** Axis label; defaults to the field name. */
   title?: string;
+  /**
+   * A nominal field's categories, in order. They keep their place even with no rows;
+   * values the list does not name follow it, in order of first appearance.
+   */
+  domain?: string[];
+  /**
+   * A nominal field's colours, used by every view that colours by it: a list (in the
+   * order of `domain`, or of first appearance) or category name to colour.
+   */
+  palette?: string[] | Record<string, string>;
 }
 
 export type DataFormat = "csv" | "tsv" | "json";
@@ -72,6 +82,8 @@ export interface BarsView extends ViewBase {
   type: "bars";
   palette?: string[];
   field: string;
+  /** A second nominal field: each bar is split into its categories, stacked. */
+  color?: string;
   /** "select" toggles categories in the filter by clicking. */
   brush?: "select" | "none";
 }
@@ -90,6 +102,52 @@ export interface Scatter3DView extends ViewBase, Colors {
   z: string;
   color?: string;
   pointSize?: number;
+}
+
+/**
+ * A number against a category: one row of points per category, the value across,
+ * spread a little vertically so equal values stay visible. Brushing a range of the
+ * value filters the other views.
+ */
+export interface StripView extends ViewBase, Colors {
+  type: "strip";
+  /** The value: quantitative. */
+  x: string;
+  /** The category: nominal. */
+  y: string;
+  color?: string;
+  brush?: "x" | "none";
+  pointSize?: number;
+}
+
+/**
+ * Two nominal fields as a grid, each cell coloured by the rows holding that pair after
+ * the other views' filters. Clicking a cell selects its pair; clicking a row or column
+ * label selects all its cells.
+ */
+export interface MatrixView extends ViewBase {
+  type: "matrix";
+  x: string;
+  y: string;
+  brush?: "select" | "none";
+}
+
+/**
+ * Each row as a quantity from `low` to `high`, grouped in bands by `label`. Brushing a
+ * range keeps the rows whose interval overlaps it.
+ */
+export interface IntervalView extends ViewBase, Colors {
+  type: "interval";
+  low: string;
+  high: string;
+  label?: string;
+  color?: string;
+  /**
+   * "shared" (default): one axis for every band. "label": each band on its own scale,
+   * for quantities in different units; there is then no brush.
+   */
+  scale?: "shared" | "label";
+  brush?: "x" | "none";
 }
 
 /**
@@ -122,11 +180,22 @@ export interface Network3DView extends EdgeViewBase {
   type: "network3d";
 }
 
-export type View = ScatterView | HistogramView | BarsView | DensityView | Scatter3DView | ArcView | SankeyView | Network3DView;
+/**
+ * A directed graph in layers, left to right: each node one layer after the furthest
+ * node that leads to it (a cycle is broken where it closes), edges as flows as wide as
+ * their rows. For pipelines of steps, and rows passing from step to step.
+ */
+export interface LayersView extends EdgeViewBase {
+  type: "layers";
+}
+
+export type View =
+  | ScatterView | HistogramView | BarsView | DensityView | Scatter3DView | StripView | MatrixView | IntervalView
+  | ArcView | SankeyView | Network3DView | LayersView;
 
 /** True for the views whose rows are edges. */
-export const isEdgeView = (v: View): v is ArcView | SankeyView | Network3DView =>
-  v.type === "arc" || v.type === "sankey" || v.type === "network3d";
+export const isEdgeView = (v: View): v is ArcView | SankeyView | Network3DView | LayersView =>
+  v.type === "arc" || v.type === "sankey" || v.type === "network3d" || v.type === "layers";
 export type ViewType = View["type"];
 
 export interface FigureOutput {
@@ -151,6 +220,11 @@ export interface Spec {
   theme?: Theme;
   data: DataSource;
   fields?: Record<string, FieldDef>;
+  /**
+   * A field whose values identify rows. Selections then report those values, and rows
+   * can be selected from outside by them (`Handle.select`).
+   */
+  key?: string;
   views: View[];
   layout?: { columns?: number };
   output?: { interactive?: boolean; figure?: FigureOutput };
@@ -165,23 +239,31 @@ export interface Problem {
 const VIEW_FIELDS: Record<ViewType, { required: string[]; optional: string[] }> = {
   scatter: { required: ["x", "y"], optional: ["color"] },
   histogram: { required: ["field"], optional: [] },
-  bars: { required: ["field"], optional: [] },
+  bars: { required: ["field"], optional: ["color"] },
   density: { required: ["x", "y"], optional: [] },
   scatter3d: { required: ["x", "y", "z"], optional: ["color"] },
+  strip: { required: ["x", "y"], optional: ["color"] },
+  matrix: { required: ["x", "y"], optional: [] },
+  interval: { required: ["low", "high"], optional: ["label", "color"] },
   arc: { required: ["source", "target"], optional: [] },
   sankey: { required: ["source", "target"], optional: [] },
   network3d: { required: ["source", "target"], optional: [] },
+  layers: { required: ["source", "target"], optional: [] },
 };
 
 const NEEDS: Record<ViewType, Record<string, FieldType | undefined>> = {
   scatter: { x: "quantitative", y: "quantitative", color: undefined },
   histogram: { field: "quantitative" },
-  bars: { field: "nominal" },
+  bars: { field: "nominal", color: "nominal" },
   density: { x: "quantitative", y: "quantitative" },
   scatter3d: { x: "quantitative", y: "quantitative", z: "quantitative", color: undefined },
+  strip: { x: "quantitative", y: "nominal", color: undefined },
+  matrix: { x: "nominal", y: "nominal" },
+  interval: { low: "quantitative", high: "quantitative", label: "nominal", color: undefined },
   arc: { source: "nominal", target: "nominal" },
   sankey: { source: "nominal", target: "nominal" },
   network3d: { source: "nominal", target: "nominal" },
+  layers: { source: "nominal", target: "nominal" },
 };
 
 const BRUSHES: Record<ViewType, string[]> = {
@@ -190,9 +272,13 @@ const BRUSHES: Record<ViewType, string[]> = {
   bars: ["select", "none"],
   density: [],
   scatter3d: [],
+  strip: ["x", "none"],
+  matrix: ["select", "none"],
+  interval: ["x", "none"],
   arc: ["select", "none"],
   sankey: ["select", "none"],
   network3d: ["select", "none"],
+  layers: ["select", "none"],
 };
 
 const COMMON_VIEW_KEYS = ["id", "type", "title", "height", "span"];
@@ -202,11 +288,16 @@ const EXTRA_VIEW_KEYS: Record<ViewType, string[]> = {
   bars: ["brush", "palette"],
   density: ["bins"],
   scatter3d: ["pointSize", "fill", "palette"],
+  strip: ["brush", "pointSize", "fill", "palette"],
+  matrix: ["brush"],
+  interval: ["brush", "scale", "fill", "palette"],
   arc: ["brush", "order"],
   sankey: ["brush"],
   network3d: ["brush"],
+  layers: ["brush"],
 };
-const TOP_KEYS = ["$schema", "version", "title", "description", "theme", "data", "fields", "views", "layout", "output"];
+const TOP_KEYS = ["$schema", "version", "title", "description", "theme", "data", "fields", "key", "views", "layout", "output"];
+const FIELD_KEYS = ["type", "title", "domain", "palette"];
 const THEMES: Theme[] = ["auto", "light", "dark", "paper"];
 const DATA_KEYS = { url: ["url", "format", "pointer"], values: ["values"], columns: ["columns"] };
 const DATA_FORMATS: DataFormat[] = ["csv", "tsv", "json"];
@@ -252,8 +343,21 @@ export function dimensionsNeeded(view: View): number {
     case "histogram": case "bars": return 1;
     case "density": return 2;
     case "scatter3d": return 0;
-    case "arc": case "sankey": case "network3d": return 1;
+    case "strip": return (view.brush ?? "x") === "x" ? 1 : 0;
+    case "matrix": return 1;
+    case "interval": return (view.brush ?? "x") === "x" && view.scale !== "label" ? 2 : 0;
+    case "arc": case "sankey": case "network3d": case "layers": return 1;
   }
+}
+
+/**
+ * The type a declared field loads as: its `type`, else nominal when it has a domain or
+ * a palette (those are for categories), else whatever the data says.
+ */
+export function declaredType(def: FieldDef | undefined): FieldType | undefined {
+  if (!def) return undefined;
+  if (def.type !== undefined && def.type !== null) return def.type === "quantitative" ? "quantitative" : "nominal";
+  return def.domain !== undefined || def.palette !== undefined ? "nominal" : undefined;
 }
 
 /** Every field a view reads, with the type it needs (undefined: any type). */
@@ -308,13 +412,36 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     else
       for (const [name, def] of Object.entries(spec.fields)) {
         if (!isObject(def)) { bad(`/fields/${name}`, "must be an object"); continue; }
-        unknownKeys(def, ["type", "title"], `/fields/${name}`, bad);
+        const at = `/fields/${name}`;
+        unknownKeys(def, FIELD_KEYS, at, bad);
         if (def.type !== undefined) {
           if (def.type !== "quantitative" && def.type !== "nominal")
-            bad(`/fields/${name}/type`, 'must be "quantitative" or "nominal"');
+            bad(`${at}/type`, 'must be "quantitative" or "nominal"');
           else declared[name] = def.type;
         }
+        if (def.domain !== undefined) {
+          const d = def.domain;
+          if (!Array.isArray(d) || d.length === 0 || !d.every((c) => typeof c === "string") || new Set(d).size !== d.length)
+            bad(`${at}/domain`, "a list of category names, each once");
+        }
+        if (def.palette !== undefined) {
+          const p = def.palette;
+          const entries = Array.isArray(p) ? p.map((c, k) => [String(k), c] as const) : isObject(p) ? Object.entries(p) : [];
+          if (entries.length < 1 || entries.length > MAX_FIELD_PALETTE)
+            bad(`${at}/palette`, `a list of 1 to ${MAX_FIELD_PALETTE} colours, or category name to colour`);
+          else for (const [k, c] of entries) if (!isColor(c)) bad(`${at}/palette/${k}`, COLOR_RULE);
+        }
+        // A domain or a palette makes a field nominal.
+        if (def.domain !== undefined || def.palette !== undefined) {
+          if (def.type === "quantitative") bad(at, "a domain or a palette is for a nominal field; this one is quantitative");
+          else if (def.type === undefined) declared[name] = "nominal";
+        }
       }
+  }
+
+  if (spec.key !== undefined) {
+    if (typeof spec.key !== "string" || spec.key === "") bad("/key", "the name of a field whose values identify rows");
+    else if (types && !(spec.key in types)) bad("/key", `no field "${spec.key}" in the data`);
   }
 
   if (!Array.isArray(spec.views) || spec.views.length === 0) {
@@ -354,6 +481,8 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     }
     if (v.order !== undefined && !["count", "name", "data"].includes(v.order as string))
       bad(`${at}/order`, "one of count, name, data");
+    if (v.scale !== undefined && !["shared", "label"].includes(v.scale as string)) bad(`${at}/scale`, "one of shared, label");
+    if (v.scale === "label" && v.brush === "x") bad(`${at}/brush`, 'a brush needs one shared scale; with "scale": "label" it is "none"');
     if (v.fill !== undefined && !isColor(v.fill)) bad(`${at}/fill`, COLOR_RULE);
     if (v.palette !== undefined) {
       if (!Array.isArray(v.palette) || v.palette.length < 1 || v.palette.length > MAX_PALETTE)
@@ -381,9 +510,9 @@ export function validate(input: unknown, types?: Record<string, FieldType>): Pro
     }
   }
   const views = spec.views.filter((v: unknown): v is View => isObject(v) && (v.type as string) in VIEW_FIELDS);
-  const dims = views.reduce((n: number, v: View) => n + dimensionsNeeded(v), 0);
+  const dims = views.reduce((n: number, v: View) => n + dimensionsNeeded(v), typeof spec.key === "string" && spec.key ? 1 : 0);
   if (dims > MAX_DIMENSIONS)
-    bad("/views", `these views need ${dims} crossfilter dimensions; the limit is ${MAX_DIMENSIONS} (scatter with brush 2, density 2, histogram 1, bars 1, arc 1, sankey 1, network3d 1, scatter3d 0)`);
+    bad("/views", `these views need ${dims} crossfilter dimensions; the limit is ${MAX_DIMENSIONS} (scatter with brush 2, interval with brush 2, density 2, histogram 1, bars 1, strip with brush 1, matrix 1, arc 1, sankey 1, network3d 1, layers 1, scatter3d 0, and 1 for a key)`);
 
   const figure = isObject(spec.output) ? spec.output.figure : undefined;
   if (figure !== undefined) {
@@ -415,6 +544,7 @@ export function jsonSchema(): Record<string, unknown> {
     pointSize: positive,
     bins: { type: "integer", minimum: 1, maximum: 10_000 },
     order: { enum: ["count", "name", "data"] },
+    scale: { enum: ["shared", "label"] },
     fill: color,
     palette: { type: "array", items: color, minItems: 1, maxItems: MAX_PALETTE },
   };
@@ -453,8 +583,19 @@ export function jsonSchema(): Record<string, unknown> {
       },
       fields: {
         type: "object",
-        additionalProperties: closed({ type: { enum: ["quantitative", "nominal"] }, title: str }, []),
+        additionalProperties: closed({
+          type: { enum: ["quantitative", "nominal"] },
+          title: str,
+          domain: { type: "array", items: str, minItems: 1, uniqueItems: true },
+          palette: {
+            oneOf: [
+              { type: "array", items: color, minItems: 1, maxItems: MAX_FIELD_PALETTE },
+              { type: "object", additionalProperties: color, minProperties: 1, maxProperties: MAX_FIELD_PALETTE },
+            ],
+          },
+        }, []),
       },
+      key: { type: "string", minLength: 1, description: "a field whose values identify rows" },
       views: { type: "array", minItems: 1, items: { oneOf: (Object.keys(VIEW_FIELDS) as ViewType[]).map(view) } },
       layout: closed({ columns: { type: "integer", minimum: 1, maximum: 12 } }, []),
       output: closed({

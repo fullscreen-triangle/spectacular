@@ -126,6 +126,7 @@ function render({ model, el }: { model: Model; el: HTMLElement }) {
     if (!handle) return;
     model.set("selection", handle.selection());
     if (model.get("track_rows")) model.set("_rows", new DataView(handle.selectedRows().buffer));
+    if (model.get("spec")?.key) model.set("_keys", handle.selectedKeys());
     model.save_changes();
   };
   const draw = async () => {
@@ -159,8 +160,10 @@ function render({ model, el }: { model: Model; el: HTMLElement }) {
       void draw();
     });
   };
-  const onMessage = (msg: { type?: string; id?: string }) => {
+  const onMessage = (msg: { type?: string; id?: string; keys?: string[] | null }) => {
     if (msg?.type === "svg") model.send({ type: "svg", id: msg.id, svg: handle ? handle.toSVG() : null });
+    // Rows selected from Python by key, on top of the brushes.
+    if (msg?.type === "select" && handle) model.send({ type: "selected", id: msg.id, matched: handle.select(msg.keys ?? null) });
   };
   model.on("change:spec", redraw);
   model.on("change:columns", redraw);

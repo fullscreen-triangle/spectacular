@@ -4,13 +4,17 @@ import type { DimInit, GroupInit } from "./engine/protocol";
 import { SpecError, validate, type Spec, type Theme, type View } from "./spec";
 import { arc } from "./views/arc";
 import { bars } from "./views/bars";
-import { edgePairs, type Allocation, type Panel, type ViewContext } from "./views/common";
+import { crossPairs, edgePairs, type Allocation, type Panel, type ViewContext } from "./views/common";
 import { density } from "./views/density";
 import { histogram } from "./views/histogram";
+import { interval } from "./views/interval";
+import { layers } from "./views/layers";
+import { matrix } from "./views/matrix";
 import { network3d } from "./views/network3d";
 import { sankey } from "./views/sankey";
 import { scatter } from "./views/scatter";
 import { scatter3d } from "./views/scatter3d";
+import { strip } from "./views/strip";
 import { STYLE } from "./style";
 import { toSVG } from "./export";
 
@@ -26,12 +30,20 @@ export interface MountOptions {
   theme?: Theme;
 }
 
-/** One active brush, in data terms: a closed range on a quantitative field, or categories. */
+/**
+ * One active brush, in data terms: a closed range on a quantitative field, categories
+ * of a nominal one, or for an interval view the range its rows overlap (low end at or
+ * below `overlaps[1]`, high end at or above `overlaps[0]`; `field` is the low end and
+ * `to` the high end). A selection made from outside by key has `view` "" and the key
+ * field.
+ */
 export interface Filter {
   view: string;
   field: string;
   range?: [number, number];
   values?: string[];
+  to?: string;
+  overlaps?: [number, number];
 }
 
 /** What is selected, in terms another program can apply to its own copy of the data. */
@@ -50,6 +62,13 @@ export interface Handle {
   selection(): Selection;
   /** Indices (0-based, in data order) of the selected rows. */
   selectedRows(): Uint32Array;
+  /** The spec's `key` values of the selected rows ([] without a key). */
+  selectedKeys(): string[];
+  /**
+   * Selects rows from outside by their `key` values, as one more filter on top of the
+   * brushes; null clears it. Returns how many of the keys the data holds. Needs a `key`.
+   */
+  select(keys: Iterable<string> | null): number;
   /**
    * The views as they are now, as a standalone SVG document. Text, axes, bars and 2D
    * points (up to 50,000 rows) are vectors; density grids, larger point clouds and 3D
@@ -63,6 +82,8 @@ interface Plan {
   dims: DimInit[];
   groups: GroupInit[];
   allocations: Allocation[];
+  /** The dimension of the spec's key, when it has one. */
+  key?: number;
 }
 
 /**
@@ -73,6 +94,10 @@ interface Plan {
 export function plan(spec: Spec, table: Table): Plan {
   const dims: DimInit[] = [];
   const groups: GroupInit[] = [];
+  const pairDim = (codes: Uint32Array, cardinality: number): number => {
+    dims.push({ kind: "categorical", codes, cardinality: Math.max(1, cardinality) });
+    return dims.length - 1;
+  };
   const dim = (field: string): number => {
     const c = table.columns.get(field)!;
     dims.push(c.type === "quantitative"
@@ -90,10 +115,27 @@ export function plan(spec: Spec, table: Table): Plan {
         return { dims: { [v.field]: d }, group: groups.length - 1 };
       }
       case "bars": {
-        const d = dim(v.field);
+        if (!v.color) {
+          const d = dim(v.field);
+          groups.push({ kind: "category", dim: d });
+          return { dims: { [v.field]: d }, group: groups.length - 1 };
+        }
+        // Split bars count (field, color) pairs; a bar's filter is all its pairs.
+        const cross = crossPairs(table, v.field, v.color);
+        const d = pairDim(cross.codes, cross.pairs.length);
         groups.push({ kind: "category", dim: d });
-        return { dims: { [v.field]: d }, group: groups.length - 1 };
+        return { dims: { [v.field]: d }, group: groups.length - 1, cross };
       }
+      case "strip":
+        return (v.brush ?? "x") === "x" ? { dims: { [v.x]: dim(v.x) } } : { dims: {} };
+      case "matrix": {
+        const cross = crossPairs(table, v.x, v.y);
+        const d = pairDim(cross.codes, cross.pairs.length);
+        groups.push({ kind: "category", dim: d });
+        return { dims: { [`${v.x} × ${v.y}`]: d }, group: groups.length - 1, cross };
+      }
+      case "interval":
+        return (v.brush ?? "x") === "x" && v.scale !== "label" ? { dims: { [v.low]: dim(v.low), [v.high]: dim(v.high) } } : { dims: {} };
       case "density": {
         const [xBins, yBins] = v.bins ?? [128, 128];
         const x = dim(v.x), y = dim(v.y);
@@ -104,24 +146,26 @@ export function plan(spec: Spec, table: Table): Plan {
         return { dims: {} };
       case "arc":
       case "sankey":
-      case "network3d": {
+      case "network3d":
+      case "layers": {
         // One dimension over (source, target) pairs: a node's edges are a set of
         // pair codes, so selecting a node is one categorical filter.
         const pairs = edgePairs(table, v.source, v.target);
-        dims.push({ kind: "categorical", codes: pairs.codes, cardinality: Math.max(1, pairs.pairs.length) });
-        const d = dims.length - 1;
+        const d = pairDim(pairs.codes, pairs.pairs.length);
         groups.push({ kind: "category", dim: d });
         return { dims: { [`${v.source} → ${v.target}`]: d }, group: groups.length - 1, pairs };
       }
     }
   });
+  // A key has a dimension of its own, so rows can be selected from outside by key.
+  const key = spec.key && table.columns.get(spec.key)?.type === "nominal" ? dim(spec.key) : undefined;
   if (dims.length > 32)
     throw new Error(`this spec needs ${dims.length} crossfilter dimensions; the limit is 32 (each brushing view uses one per brushed field)`);
-  return { dims, groups, allocations };
+  return { dims, groups, allocations, key };
 }
 
 const BUILDERS: { [K in View["type"]]: (ctx: ViewContext<Extract<View, { type: K }>>) => Panel } = {
-  scatter, histogram, bars, density, scatter3d, arc, sankey, network3d,
+  scatter, histogram, bars, density, scatter3d, strip, matrix, interval, arc, sankey, network3d, layers,
 };
 
 let styled = false;
@@ -142,7 +186,7 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
   problems = validate(spec, fieldTypes(table));
   if (problems.length) throw new SpecError(problems);
 
-  const { dims, groups, allocations } = plan(spec, table);
+  const { dims, groups, allocations, key } = plan(spec, table);
   let engine: Engine;
   try {
     engine = await Engine.start(table.rows, dims, groups, opts.worker);
@@ -171,6 +215,7 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
 
   const gap = 12;
   const titleOf = (field: string) => spec.fields?.[field]?.title ?? field;
+  const fieldDef = (field: string) => spec.fields?.[field];
   /** The width inside the root's padding; 0 while the element is not laid out. */
   const inner = () => {
     const cs = getComputedStyle(el);
@@ -181,7 +226,7 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     return spec.views.map((view, i) => {
       const span = Math.min(columns, view.span ?? 1);
       const make = BUILDERS[view.type] as (ctx: ViewContext) => Panel;
-      const panel = make({ view, table, engine, alloc: allocations[i]!, width: cell * span + gap * (span - 1) - 2, titleOf });
+      const panel = make({ view, table, engine, alloc: allocations[i]!, width: cell * span + gap * (span - 1) - 2, titleOf, fieldDef });
       panel.el.style.gridColumn = `span ${span}`;
       grid.append(panel.el);
       return panel;
@@ -200,7 +245,8 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     clearTimeout(relayout);
     relayout = window.setTimeout(() => {
       builtWidth = inner();
-      for (const dim of [...engine.filters.keys()]) engine.filter({ dim, clear: true });
+      // A selection made from outside (by key) is not a brush, so it stays.
+      for (const dim of [...engine.filters.keys()]) if (dim !== key) engine.filter({ dim, clear: true });
       panels.forEach((p) => p.destroy());
       grid.replaceChildren();
       panels = build(builtWidth);
@@ -219,22 +265,59 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
     report(s);
   });
 
-  const owners = new Map<number, { view: string; field: string; labels?: string[] }>();
+  /** What each dimension's filter means in data terms. */
+  interface Owner {
+    view: string;
+    field: string;
+    /** Names of a pair dimension's codes, when they are not the field's own categories. */
+    labels?: string[];
+    /** An interval view's two dimensions, reported together as one overlap. */
+    interval?: { low: string; high: string; lowDim: number; highDim: number };
+  }
+  const owners = new Map<number, Owner>();
   allocations.forEach((a, i) => {
-    for (const [field, d] of Object.entries(a.dims)) owners.set(d, { view: spec.views[i]!.id, field, labels: a.pairs?.labels });
+    const v = spec.views[i]!;
+    // Pair dimensions report categories: an edge's "source → target", a matrix cell's
+    // "x × y", and a split bar its category of the bar's own field.
+    const barLabels = (() => {
+      if (!a.cross || v.type !== "bars") return undefined;
+      const c = table.columns.get(v.field);
+      return c?.type === "nominal" ? a.cross.pairs.map(([j]) => c.labels[j]!) : undefined;
+    })();
+    const labels = a.pairs?.labels ?? barLabels ?? a.cross?.labels;
+    const interval = v.type === "interval" && a.dims[v.low] !== undefined && a.dims[v.high] !== undefined
+      ? { low: v.low, high: v.high, lowDim: a.dims[v.low]!, highDim: a.dims[v.high]! }
+      : undefined;
+    for (const [field, d] of Object.entries(a.dims)) owners.set(d, { view: v.id, field, labels, interval });
   });
-  const selection = (): Selection => ({
-    selected: engine.state.selectedCount,
-    rows: engine.state.rows,
-    filters: [...engine.filters].sort(([a], [b]) => a - b).map(([d, op]): Filter => {
-      const { view, field, labels } = owners.get(d)!;
-      if ("range" in op) return { view, field, range: [Math.min(...op.range), Math.max(...op.range)] };
+  if (key !== undefined) owners.set(key, { view: "", field: spec.key! });
+  const finite = (n: number) => (Number.isFinite(n) ? n : null) as number;
+  const selection = (): Selection => {
+    const filters: Filter[] = [];
+    const reported = new Set<string>();
+    for (const [d, op] of [...engine.filters].sort(([a], [b]) => a - b)) {
+      const { view, field, labels, interval } = owners.get(d)!;
+      if (interval) {
+        if (reported.has(view)) continue;
+        reported.add(view);
+        const low = engine.filters.get(interval.lowDim), high = engine.filters.get(interval.highDim);
+        const top = low && "range" in low ? low.range[1] : Infinity;
+        const bottom = high && "range" in high ? high.range[0] : -Infinity;
+        filters.push({ view, field: interval.low, to: interval.high, overlaps: [finite(bottom), finite(top)] });
+        continue;
+      }
+      if ("range" in op) {
+        filters.push({ view, field, range: [Math.min(...op.range), Math.max(...op.range)] });
+        continue;
+      }
       const c = table.columns.get(field);
-      // Edge views filter on pairs, reported as "source → target".
-      const name = (k: number) => (c?.type === "nominal" ? c.labels[k]! : labels?.[k] ?? String(k));
-      return { view, field, values: "codes" in op ? op.codes.map(name) : [] };
-    }),
-  });
+      const name = (k: number) => labels?.[k] ?? (c?.type === "nominal" ? c.labels[k]! : String(k));
+      filters.push({ view, field, values: "codes" in op ? [...new Set(op.codes.map(name))] : [] });
+    }
+    return { selected: engine.state.selectedCount, rows: engine.state.rows, filters };
+  };
+  const keyColumn = key !== undefined ? table.columns.get(spec.key!) : undefined;
+  const keyIndex = keyColumn?.type === "nominal" ? new Map(keyColumn.labels.map((l, i) => [l, i])) : undefined;
 
   return {
     table,
@@ -254,6 +337,23 @@ export async function mount(el: HTMLElement, spec: Spec, opts: MountOptions = {}
       const out = new Uint32Array(engine.state.selectedCount);
       for (let r = 0, k = 0; r < m.length; r++) if (m[r]) out[k++] = r;
       return out;
+    },
+    selectedKeys() {
+      if (keyColumn?.type !== "nominal") return [];
+      const m = engine.state.mask;
+      const out: string[] = [];
+      for (let r = 0; r < m.length; r++) if (m[r]) out.push(keyColumn.labels[keyColumn.codes[r]!]!);
+      return out;
+    },
+    select(keys) {
+      if (key === undefined || !keyIndex) throw new Error("select() needs a spec with a \"key\" field");
+      if (keys === null) {
+        engine.filter({ dim: key, clear: true });
+        return 0;
+      }
+      const codes = [...new Set(keys)].flatMap((k) => (keyIndex.has(k) ? [keyIndex.get(k)!] : []));
+      engine.filter({ dim: key, codes });
+      return codes.length;
     },
     destroy() {
       observer?.disconnect();

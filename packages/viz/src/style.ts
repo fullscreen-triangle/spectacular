@@ -64,6 +64,8 @@ export const STYLE = /* css */ `
 .sv-flow.sv-chosen { stroke: var(--sv-accent); stroke-opacity: 0.75; }
 .sv-flow:hover, .sv-edge:hover { stroke-opacity: 0.9; }
 .sv-bar { fill: var(--sv-focus); }
+.sv-cell-label { font-size: 10px; pointer-events: none; font-variant-numeric: tabular-nums; }
+.sv-overlay text.sv-band { fill: var(--sv-muted); font-size: 11px; }
 .sv-bar.sv-chosen { fill: var(--sv-accent); }
 .sv-hit { cursor: pointer; }
 .sv-tip { position: absolute; pointer-events: none; z-index: 2; max-width: 240px; padding: 4px 7px; border-radius: 4px;

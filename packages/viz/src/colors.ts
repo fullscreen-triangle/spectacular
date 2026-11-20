@@ -30,5 +30,8 @@ export function isColor(value: unknown): value is string {
   return typeof value === "string" && (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) || NAMES.has(value.toLowerCase()));
 }
 
-/** Most categories a palette may hold; the point shaders keep ten colours. */
+/** Most colours a view's own palette may hold. */
 export const MAX_PALETTE = 10;
+
+/** Most colours a field's palette may hold; the point shaders keep this many. */
+export const MAX_FIELD_PALETTE = 32;

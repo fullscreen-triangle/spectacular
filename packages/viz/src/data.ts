@@ -1,6 +1,6 @@
 import { dsvFormat } from "d3";
 import type { FieldType, Spec } from "./spec.ts";
-import { fieldsUsed } from "./spec.ts";
+import { declaredType, fieldsUsed } from "./spec.ts";
 
 export type Column =
   | { type: "quantitative"; values: Float64Array; extent: [number, number] }
@@ -61,23 +61,56 @@ function toNumbers(raw: ArrayLike<unknown>): Float64Array {
   return out;
 }
 
-/** The fields the spec reads: those its views use, plus those it declares. */
+/** The fields the spec reads: those its views use, its key, then those it declares. */
 export function neededFields(spec: Spec): string[] {
   const names = new Set(spec.views.flatMap((v) => fieldsUsed(v).map(([f]) => f)));
+  if (typeof spec.key === "string" && spec.key) names.add(spec.key);
   for (const f of Object.keys(spec.fields ?? {})) names.add(f);
   return [...names];
 }
 
-/** `header` lists a CSV's columns, so a field is known to be absent even with no rows. */
-function fromRows(spec: Spec, rows: Record<string, unknown>[], header?: string[]): Table {
+/** Every property any row has, in order of first appearance. */
+function propertiesOf(rows: Record<string, unknown>[]): string[] {
+  const names = new Set<string>();
+  for (const r of rows) if (r && typeof r === "object") for (const k of Object.keys(r)) names.add(k);
+  return [...names];
+}
+
+/**
+ * A table's columns: a CSV's `header`, or for JSON rows every property any row has, so
+ * rows need not all carry the same properties (a row without one holds a missing value).
+ */
+function fromRows(spec: Spec, rows: Record<string, unknown>[], header = propertiesOf(rows)): Table {
   const columns = new Map<string, Column>();
   for (const name of neededFields(spec)) {
-    if (header ? !header.includes(name) : rows.length && !(name in rows[0]!)) continue;
-    const raw = rows.map((r) => r[name]);
-    const type = spec.fields?.[name]?.type ?? infer(raw);
+    if (!header.includes(name)) continue;
+    const raw = rows.map((r) => r?.[name]);
+    // A key identifies rows, so it is a category even when its values look like numbers.
+    const type = declaredType(spec.fields?.[name]) ?? (name === spec.key ? "nominal" : infer(raw));
     columns.set(name, type === "quantitative" ? quantitative(toNumbers(raw)) : nominal(raw));
   }
-  return { rows: rows.length, columns };
+  return withDomains(spec, { rows: rows.length, columns });
+}
+
+/**
+ * Puts each nominal field with a declared domain in that order: the domain's categories
+ * first, with or without rows, then any other values in their first-appearance order.
+ */
+function withDomains(spec: Spec, table: Table): Table {
+  for (const [name, c] of table.columns) {
+    const domain = spec.fields?.[name]?.domain;
+    if (c.type !== "nominal" || !Array.isArray(domain)) continue;
+    const labels = domain.filter((d): d is string => typeof d === "string");
+    const at = new Map(labels.map((l, i) => [l, i]));
+    for (const l of c.labels)
+      if (!at.has(l)) {
+        at.set(l, labels.length);
+        labels.push(l);
+      }
+    const remap = c.labels.map((l) => at.get(l)!);
+    table.columns.set(name, { type: "nominal", codes: Uint32Array.from(c.codes, (k) => remap[k]!), labels });
+  }
+  return table;
 }
 
 function fromExternal(spec: Spec, external: Record<string, ExternalColumn>): Table {
@@ -89,7 +122,7 @@ function fromExternal(spec: Spec, external: Record<string, ExternalColumn>): Tab
     let column: Column;
     if ("codes" in col && "labels" in col) {
       column = { type: "nominal", codes: Uint32Array.from(col.codes), labels: col.labels };
-    } else if (spec.fields?.[name]?.type === "nominal" || (col.length > 0 && typeof col[0] === "string")) {
+    } else if ((declaredType(spec.fields?.[name]) ?? (name === spec.key ? "nominal" : undefined)) === "nominal" || (col.length > 0 && typeof col[0] === "string")) {
       column = nominal(col as ArrayLike<unknown>);
     } else {
       column = quantitative(col instanceof Float64Array ? col : Float64Array.from(col as ArrayLike<number>));
@@ -99,7 +132,7 @@ function fromExternal(spec: Spec, external: Record<string, ExternalColumn>): Tab
     rows = n;
     columns.set(name, column);
   }
-  return { rows: Math.max(rows, 0), columns };
+  return withDomains(spec, { rows: Math.max(rows, 0), columns });
 }
 
 export async function loadTable(
