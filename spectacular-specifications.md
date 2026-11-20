@@ -11,7 +11,8 @@ contract, and `spectacular.schema.json` is generated from it.
 
 **Programs** need §2 and §8: one command-line tool, JSON in and out, fixed exit codes.
 They never link against spectacular's code. **Python programs and Jupyter notebooks**
-import the `spectacular` package instead (§8.6).
+import the `spectacular` package instead (§8.6). **People** can skip the full spec: a
+*chart description* (§4.7) names columns, and the chart types, ids and layout follow.
 
 ## 1. What it is
 
@@ -38,7 +39,8 @@ categories. It also draws the same views to an SVG, PDF or PNG file for a paper 
 | You have | Do this |
 |---|---|
 | A program in any language that writes a spec and a data file | The **`spectacular` command**, §8: `validate`, `render`, `serve`. |
-| Python: a Jupyter notebook, a script, a pipeline step | **`import spectacular`**, §8.6: views in the notebook, selections back in Python. |
+| Python: a Jupyter notebook, a script, a pipeline step | **`pip install spectacular-charts`**, §8.6: views in the notebook, selections back in Python. |
+| A chart description, and no Node | The native **`spectacular`** command in that wheel (or `cargo build --release -p spectacular`): `compile`, `validate`, `html`, `schema`, §4.7. |
 | A spec plus a data file, and a person who wants to look | `spectacular serve <spec>`, §8.4, or the dev server, §2.1. |
 | A TypeScript or JavaScript web app | **Embed** with `mount()`, §7. |
 | Only a spec to check | `spectacular validate <spec>`, §2.2. |
@@ -213,11 +215,11 @@ optional `title` (defaults to `id`), `height` (plot height in CSS pixels) and `s
 
 | `type` | Properties | Brush | Defaults |
 |---|---|---|---|
-| `scatter` | `x`, `y`, `color?`, `brush?`, `pointSize?` | `"xy"` (rectangle) or `"none"` | brush `"xy"`, height 320 |
-| `histogram` | `field`, `bins?`, `brush?` | `"x"` (range) or `"none"` | bins 60, brush `"x"`, height 200 |
-| `bars` | `field`, `brush?` | `"select"` (click a category to toggle it) or `"none"` | brush `"select"`, height 22 px per category, between 120 and 420 |
+| `scatter` | `x`, `y`, `color?`, `brush?`, `pointSize?`, `fill?`, `palette?` | `"xy"` (rectangle) or `"none"` | brush `"xy"`, height 320 |
+| `histogram` | `field`, `bins?`, `brush?`, `fill?` | `"x"` (range) or `"none"` | bins 60, brush `"x"`, height 200 |
+| `bars` | `field`, `brush?`, `palette?` | `"select"` (click a category to toggle it) or `"none"` | brush `"select"`, height 22 px per category, between 120 and 420 |
 | `density` | `x`, `y`, `bins?` (`[xBins, yBins]`) | none | bins `[128, 128]`, height 300 |
-| `scatter3d` | `x`, `y`, `z`, `color?`, `pointSize?` | none (drag to orbit, scroll to zoom) | height 360 |
+| `scatter3d` | `x`, `y`, `z`, `color?`, `pointSize?`, `fill?`, `palette?` | none (drag to orbit, scroll to zoom) | height 360 |
 | `arc` | `source`, `target`, `order?` (`"count"`, `"name"` or `"data"`), `brush?` | `"select"` (click an arc or a node) or `"none"` | order `"count"`, brush `"select"`, height 300 |
 | `sankey` | `source`, `target`, `brush?` | `"select"` (click a flow, or a node on either side) or `"none"` | brush `"select"`, height 360 |
 | `network3d` | `source`, `target`, `brush?` | `"select"` (click a node) or `"none"`; drag to orbit, scroll to zoom | brush `"select"`, height 420 |
@@ -226,6 +228,10 @@ Constraints:
 - **`bins`:** an integer from 1 to 10,000 for histograms; each of the pair an integer
   from 1 to 1,024 for density.
 - **`height`, `span` and `pointSize`:** positive numbers.
+- **`fill`:** one colour for the marks when no `color` field is given (for a histogram,
+  its bars): `"#rrggbb"`, `"#rgb"` or a CSS colour name such as `"steelblue"`.
+- **`palette`:** 1 to 10 such colours for the categories, in order of first appearance;
+  they repeat beyond that. It colours a `color` field's categories, and a bar chart's bars.
 - **Brushes:** only `scatter`, `histogram`, `bars`, `arc`, `sankey` and `network3d`
   accept a `brush` property. On any other view it is an error.
 
@@ -282,6 +288,54 @@ centred along each axis. Titles come from `fields.<name>.title`, else the field 
   views accordingly at that scale.
 - **Rows:** at most 4,294,967,295 (the crossfilter indexes rows with 32 bits). The
   demo's synthetic generator caps itself at 20 million.
+
+### 4.7 Chart descriptions: the short form
+
+A description says which columns to chart; the compiler in `crates/spectacular` turns it
+into a spec. It is what the Python package and the native command accept, and a full spec
+passes through it unchanged, so either form works everywhere a description does.
+
+```json
+{"title": "Growth plate", "labels": {"od600": "OD600"}, "categorical": ["well"], "columns": 2,
+ "charts": [
+   {"x-axis": "time_h", "y-axis": "od600", "color": "medium", "palette": ["teal", "orange"]},
+   {"x": "rate", "color": "slateblue"},
+   {"x": "medium", "wide": true}
+ ]}
+```
+
+- **Forgiving keys and names.** Keys match without regard to case, spaces, dashes or
+  underscores, and have aliases (`x-axis`, `colour`, `chart` for `type`, `from` and `to`
+  for `source` and `target`). Column names match the same way; a name that matches no
+  column gets a suggestion.
+- **Chart types from the columns**, when `type` is absent. One number is a histogram and
+  one category is bars. Two numbers are a scatter, or a density above 200,000 rows; three
+  are a 3D scatter. `from` and `to` are a sankey. A category against a number is refused with a
+  suggestion, as there is no chart for that pair yet.
+- **Colours.** `color` is a column to colour by, one colour, or a list of colours;
+  `palette` lists category colours. A histogram takes one colour (`fill`), bars a palette,
+  scatters all three. A palette given with a colour column also colours the bar charts of
+  that column, so a category keeps its colour across charts. These become the spec's
+  `color`, `fill` and `palette` (§4.5).
+- **Around the charts:** `charts` holds them (or give a list at the top, or one chart's
+  keys at the top). Beside it: `title`, `theme`, `labels` (axis label per column),
+  `categorical` (numeric columns that are categories), `columns` (charts per row), `data`
+  (a file, when no table is given otherwise) and `figure` (§8.3's size).
+- **Ids and titles** are made from the columns (`"od600 vs time_h"`, id
+  `od600-vs-time-h`), unless given.
+- **Problems** point at the description's own keys, e.g.
+  `/charts/0/x-axis: no column "od60"; did you mean "od600"?`, and a spec's problems
+  found after compiling are mapped back the same way.
+
+```bash
+spectacular compile chart.json --data readings.csv --json   # {"ok", "spec", "problems"}
+spectacular validate spec.json --json                         # as §8.2, without Node
+spectacular html chart.json --data readings.csv -o page.html  # one offline page
+```
+
+The native command's `validate` checks exactly what the Node command's does:
+`cli/conformance.mjs` runs both on seeded random mutations of valid specs and requires
+the same problems, rows and field types from each.
 
 ## 5. How linking works
 
@@ -493,14 +547,23 @@ Chromium against 12–18 ms in Node. For timings, run `npm run test:wasm` or
 
 ### 8.6 From Python and Jupyter
 
-The `spectacular` Python package (in `python/`) shows the views in a notebook and reads
-the brushes back into Python. Install it from the checkout after `npm run build`:
-`pip install -e "python[notebook]"`.
+The `spectacular` Python package (in `python/`, published as `spectacular-charts`; the
+import name is `spectacular`) shows the views in a notebook and reads the brushes back
+into Python. Its wheel carries the browser runtime and the native command (§4.7), so it
+needs neither Node nor a checkout: `pip install "spectacular-charts[notebook]"`. From a
+checkout, see `python/README.md`.
+
+A notebook cell can hold nothing but a description:
+
+```
+%%spectacular df --as w
+{"charts": [{"x-axis": "time_h", "y-axis": "od600", "color": "medium"}, {"x": "rate"}]}
+```
 
 ```python
 import spectacular as sp
 
-w = sp.view(spec, data=df)    # as a cell's last expression, the views appear below it
+w = sp.view(spec, data=df)    # a description or a spec; as a cell's last expression, the views appear
 w.selection                   # {"selected": 412, "rows": 2400, "filters": [...]}, as in §8.4
 w.selected_rows               # numpy array of row indices into df
 w.selected_data()             # df.iloc[w.selected_rows]
@@ -510,13 +573,14 @@ w.save_svg("now.svg")         # what the view shows now, brushes included (§8.3
 w.problems                    # the spec's problems, as the page reported them
 
 sp.save_html(spec, "views.html", data=df)   # one offline page; nothing is reported back
-sp.render(spec, "fig.pdf", data=df)         # §8.3, through the command (needs Node)
-sp.validate(spec, data=df)                  # [{"path", "message"}], through the command
+sp.render(spec, "fig.pdf", data=df)         # §8.3, in headless Chromium (see below)
+sp.validate(spec, data=df)                  # [{"path", "message"}], by the native command
 sp.schema()                                 # the JSON Schema of §8.2
 ```
 
-- **`spec`** is a dict, a path to a spec file, or JSON text. A program can build it from
-  its own rules; nothing in it is Python-specific.
+- **`spec`** is a description (§4.7) or a spec: a dict, a list of charts, a path to a JSON
+  file, or JSON text. A program can build it from its own rules; nothing in it is
+  Python-specific.
 - **`data=`** is a pandas or polars DataFrame, a dict of columns, a list of row dicts, or
   a numpy record array. It replaces the spec's `data`. Only the fields the views name and
   the ones `fields` declares are sent, as binary columns: integer and float columns as
@@ -526,8 +590,11 @@ sp.schema()                                 # the JSON Schema of §8.2
 - **Without `data=`**, the spec's own data is used. A local `data.url` is read from disk
   (relative to the spec file, or the working directory for a dict or text) and sent to
   the page, so no server is involved.
-- **Problems** show in the cell, each with its path, and in `w.problems`. A field the
-  data lacks is reported as `no field "..." in the data`, as everywhere else.
+- **Problems** show in the cell, where the views would be, each with its path in what
+  was given, and in `w.problems`; `sp.validate` returns them without drawing.
+- **`render`** draws through Playwright for Python when it is installed
+  (`pip install "spectacular-charts[render]"`, then `python -m playwright install
+  chromium`), else through the Node command of a checkout.
 - **Selections** arrive 150 ms after a brush settles, while the kernel is idle: read them
   in a later cell, or in `on_select`. `track_rows=False` stops sending row indices,
   for tables of millions of rows where only the filters are wanted.

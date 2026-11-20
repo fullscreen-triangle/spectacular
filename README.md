@@ -11,23 +11,40 @@ point at the exact path.
 
 ## In Jupyter and Python
 
+`pip install "spectacular-charts[notebook]"`, `import spectacular`, then describe the
+charts instead of coding them. A cell holding only a description draws linked charts:
+
+```
+%%spectacular df
+{"title": "Growth plate",
+ "charts": [
+   {"x-axis": "time_h", "y-axis": "od600", "color": "medium"},
+   {"x": "rate", "color": "teal"},
+   {"x": "medium"}
+ ]}
+```
+
+Two numbers make a scatter, one number a histogram, one category bars; keys and column
+names are matched loosely, and a misspelt column comes back as
+`/charts/0/x-axis: no column "od60"; did you mean "od600"?`. From Python:
+
 ```python
 import spectacular as sp
 
-w = sp.view(spec, data=df)        # linked views in the notebook cell
-w.selection                       # what you brushed, in data terms
-w.selected_data()                 # ...and as the rows of df
-w.save_svg("brushed.svg")         # what the view shows now
+w = sp.view(description, data=df)  # the same charts; full view specs work too
+w.selection                        # what you brushed, in data terms
+w.selected_data()                  # ...and as the rows of df
+w.save_svg("brushed.svg")          # what the charts show now
 
-sp.save_html(spec, "views.html", data=df)   # the same views as one offline page
-sp.render(spec, "fig.pdf", data=df)         # a figure at print size
+sp.save_html(description, "views.html", data=df)   # one offline page
+sp.render(description, "fig.pdf", data=df)         # a figure at print size
 ```
 
-`data=` takes a pandas or polars DataFrame, a dict of columns or a list of rows; the
-columns travel to the browser as binary arrays, not CSV. The package lives in
-[`python/`](python/README.md), and
-[`examples/notebooks/spectacular-in-jupyter.ipynb`](examples/notebooks/spectacular-in-jupyter.ipynb)
-walks through it. The views take the notebook's theme, light or dark.
+The wheel carries the browser runtime and a native `spectacular` command, built from
+`crates/spectacular`, which compiles descriptions and validates specs without Node. Its
+validator is a port of the TypeScript one, and `npm run test:conformance` holds the two to
+the same answers. More in [`python/README.md`](python/README.md) and
+[`examples/notebooks/spectacular-in-jupyter.ipynb`](examples/notebooks/spectacular-in-jupyter.ipynb).
 
 ## Handing spectacular a task
 
@@ -113,7 +130,8 @@ npm run dev                 # demo at http://localhost:5173/?rows=2000000
 npm test                    # Rust tests, WASM-vs-JS check, spec/data/planner tests
 npm run test:e2e -w @spectacular/viz   # headless Chromium: brushes, clicks, pixels
 npm run test:cli            # the command as a program uses it: exit codes, render, serve
-npm run test:python         # the Python package (pip install -e "python[test]" first)
+npm run test:conformance    # the Rust and TypeScript validators agree (npm run build:native first)
+npm run test:python         # the Python package (maturin develop, or pip install -e "python[test]", first)
 SPECTACULAR_PYTHON=<python with jupyterlab> npm run test:jupyter   # a real JupyterLab: view, brush, read back
 cargo run --release -p chigutiro --example bench   # 10M-row timings
 ```

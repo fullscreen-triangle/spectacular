@@ -1,81 +1,126 @@
 # spectacular for Python
 
-Linked 2D and 3D views of one table, in a Jupyter notebook, as an offline HTML page, or
-as an SVG/PDF/PNG figure. Brushing a range in one view filters all the others. The
-filtering runs in the browser, in a WebAssembly crossfilter, so it stays interactive at
-millions of rows.
+Linked, crossfiltered charts in Jupyter, described in JSON instead of written as plotting
+code. Brush a range in one chart and every other chart filters. The filtering runs in the
+browser, in a WebAssembly crossfilter, so it stays interactive at millions of rows.
+
+```python
+import spectacular        # once; it also turns on the %%spectacular cell magic
+```
+
+```python
+%%spectacular df
+{"title": "Growth plate",
+ "labels": {"od600": "OD600"},
+ "charts": [
+   {"x-axis": "time_h", "y-axis": "od600", "color": "medium"},
+   {"x": "rate", "color": "teal"},
+   {"x": "medium", "wide": true}
+ ]}
+```
+
+That cell draws a scatter of optical density (OD600) over time coloured by medium, a teal histogram of
+growth rates, and a bar chart of media across the full width, all linked. Nothing in it is
+code: the chart types follow from the columns.
+
+## Describing charts
+
+A description is JSON (or a Python dict). The keys are forgiving: `"x-axis"`,
+`"X axis"` and `"x_axis"` are one key, and column names match without regard to case or
+spacing.
+
+| Key | Means |
+|---|---|
+| `x`, `y`, `z` (or `x-axis`, `y-axis`, `z-axis`) | columns on each axis |
+| `from`, `to` | columns of an edge table: a node to another |
+| `color` (or `colour`) | a column to colour by, one colour (`"teal"`, `"#4e79a7"`), or a list of colours |
+| `palette` (or `colors`) | the colours for the categories, in order of first appearance |
+| `type` (or `chart`) | ask for a chart type instead of the inferred one |
+| `title`, `bins`, `size`, `height`, `wide` | panel title, histogram bins, point size, plot height, full width |
+| `brush` | `false` to stop the chart filtering the others |
+
+The chart type follows from the columns when `type` is not given:
+
+| Columns | Chart |
+|---|---|
+| one number | histogram |
+| one category | bars (click to select) |
+| two numbers | scatter (a density above 200,000 rows) |
+| three numbers | 3D scatter |
+| `from` and `to` | sankey (`"type": "arc"` or `"network"` for the others) |
+
+Around the charts:
+
+| Key | Means |
+|---|---|
+| `charts` | the list of charts (or give a list at the top, or one chart's keys at the top) |
+| `title`, `theme` | the heading; `"light"`, `"dark"` or `"paper"` (default: the notebook's) |
+| `labels` | axis labels by column, e.g. `{"od600": "OD600"}` |
+| `categorical` | columns of numbers that are categories, e.g. `["well"]` |
+| `columns` | charts per row |
+| `data` | a CSV, TSV or JSON file, when no table is given in Python |
+| `figure` | print size for `render`, e.g. `{"format": "pdf", "width": 180, "unit": "mm"}` |
+
+A palette given with `color` follows that column everywhere: bar charts of it use the same
+colours. Mistakes come back at the key you wrote, with a suggestion:
+`/charts/0/x-axis: no column "od60"; did you mean "od600"?`. In a notebook they show in
+the cell, where the charts would have been.
+
+Full view specs, as [`spectacular-specifications.md`](../spectacular-specifications.md)
+describes them, are accepted everywhere a description is. `spectacular.schema()` returns
+their JSON Schema, for programs that generate specs.
+
+## From Python
 
 ```python
 import spectacular as sp
 
-spec = {
-    "title": "Growth plate",
-    "fields": {"time_h": {"title": "time (h)"}, "od600": {"title": "OD600"}},
-    "views": [
-        {"id": "curves", "type": "scatter", "x": "time_h", "y": "od600", "color": "medium", "span": 2},
-        {"id": "rate", "type": "histogram", "field": "rate", "bins": 40},
-        {"id": "medium", "type": "bars", "field": "medium"},
-    ],
-    "layout": {"columns": 2},
-}
+w = sp.view(description, data=df)   # the cell's last expression: the charts appear
+w.selection                         # {"selected": 412, "rows": 2400, "filters": [{"view": "rate", "field": "rate", "range": [0.31, 0.42]}]}
+w.selected_data()                   # the brushed rows of df
+w.on_select(lambda s: print(s["selected"]))   # after each brush settles
+w.update(description)               # draw a new description over the same data
+w.save_svg("plate.svg")             # what the charts show now, brushes included
 
-w = sp.view(spec, data=df)   # last expression in a cell: the views appear below it
+sp.validate(description, data=df)   # the problems, each {"path", "message"}; [] when it holds
+sp.save_html(description, "plate.html", data=df)   # one offline page with the linked charts
+sp.render(description, "plate.pdf", data=df)       # a figure: .svg, .pdf or .png
 ```
 
-After brushing, in a later cell:
-
-```python
-w.selection        # {"selected": 412, "rows": 2400, "filters": [{"view": "rate", "field": "rate", "range": [0.31, 0.42]}]}
-w.selected_rows    # numpy array of row indices into df
-w.selected_data()  # df.iloc[w.selected_rows]
-w.on_select(lambda s: print(s["selected"]))   # called after each brush settles
-w.save_svg("plate.svg")                        # what the view shows now, brushes included
-```
-
-The spec is the JSON described in
-[`spectacular-specifications.md`](../spectacular-specifications.md), as a dict, a path to
-a spec file, or JSON text. Programs can generate it; `sp.schema()` returns its
-JSON Schema.
-
-## Data
-
-`data=` takes a pandas or polars DataFrame, a dict of columns, a list of row dicts, or a
-numpy record array. Only the columns the views name (and those in `fields`) are sent, as
-binary columns: numbers as float64, everything else as categories. Declare a numeric
-code (a well number, a detector id) as `"nominal"` in `fields`. Dates have no axis type
-yet; convert them to numbers first.
-
-Without `data=`, the spec's own `data` is used. A local `data.url` (CSV, TSV, JSON, or
-JSON for Linked Data (JSON-LD) with a `pointer`) is read from disk, relative to the spec
-file, or to the current directory for a dict.
-
-## Other ways out
-
-| Call | Gives | Needs |
-|---|---|---|
-| `sp.view(spec, data)` | interactive views in a notebook, selection readable in Python | `anywidget` |
-| `sp.show(spec, data)` | the same, displayed now | `anywidget` |
-| `sp.save_html(spec, "x.html", data)` | one offline page with the views | nothing |
-| `sp.render(spec, "x.svg", data)` | a figure: `.svg`, `.pdf` or `.png` | Node.js and the spectacular checkout |
-| `sp.validate(spec, data)` | the spec's problems, each `{"path", "message"}` | Node.js and the checkout |
-
-Without `anywidget`, `sp.view` shows the views in an iframe instead; brushing still
-works, but nothing comes back to Python.
-
-The views take the notebook's theme (JupyterLab, Visual Studio Code and Colab dark themes
-are detected). A spec can fix it with `"theme": "light" | "dark" | "paper"`; `paper` is for
-print: white, no panel borders, darker axes.
+`%%spectacular df --as w` keeps the charts in `w`; the line takes any expression
+(`df[df.medium == "rich"]`). `data=` takes a pandas or polars DataFrame, a dict of
+columns, a list of row dicts, or a numpy record array. Only the columns the charts use are
+sent, as binary arrays. Dates have no axis type yet; convert them to numbers first.
 
 ## Install
 
-From a spectacular checkout, after the JavaScript build:
-
 ```bash
-npm run build:wasm && npm install && npm run build   # builds python/src/spectacular/static too
-pip install -e "python[notebook]"
+pip install spectacular-charts               # the charts, descriptions, offline pages
+pip install "spectacular-charts[notebook]"   # + interactive charts in Jupyter (anywidget)
+pip install "spectacular-charts[render]"     # + figures: then `python -m playwright install chromium`
 ```
 
-`npm run build:python` rebuilds only the notebook runtime. `pip wheel python` (or
-`uv build python`) makes a wheel that carries it, for machines without the checkout;
-`render` and `validate` still need the checkout there, or `SPECTACULAR_CLI` pointing at
-its `cli/spectacular.mjs`.
+The import name is `spectacular`. The wheel carries everything it needs: the browser
+runtime and the native `spectacular` command (compiled Rust), which compiles descriptions
+and validates them without Node. The command is on the `PATH` after installing:
+
+```bash
+spectacular compile chart.json --data readings.csv   # the view spec a description makes
+spectacular validate spec.json                         # problems by path, exit 1 if any
+spectacular html chart.json --data readings.csv -o readings.html
+```
+
+### From a checkout
+
+The wheels are built by `.github/workflows/python-wheels.yml` for Linux, macOS and
+Windows. To build one here, with Rust, `wasm-pack` and Node installed:
+
+```bash
+npm run build:wasm && npm install && npm run build   # the browser runtime, into python/src/spectacular/static
+cd python && maturin build --release --out dist      # a wheel for this machine
+pip install dist/*.whl
+```
+
+`maturin develop --release` installs it into the active environment for working on it.
+The runtime is generated and not committed, so `pip install` straight from the Git
+repository needs that build first.
