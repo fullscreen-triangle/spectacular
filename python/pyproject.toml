@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spectacular"
+version = "0.2.0"
+description = "Linked 2D and 3D scientific views in Jupyter and from Python, over a WebAssembly crossfilter"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Kundai Farai Sachikonye" }]
+# The core (HTML pages, figures through the command) needs nothing beyond the standard
+# library. Interactive views in a notebook need anywidget.
+dependencies = []
+
+[project.optional-dependencies]
+notebook = ["anywidget>=0.9"]
+test = ["pytest", "anywidget>=0.9", "numpy", "pandas"]
+
+[project.urls]
+Source = "https://github.com/fullscreen-triangle/spectacular"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spectacular"]
+# Built by `npm run build:python` and not committed, so it must be named explicitly.
+artifacts = ["src/spectacular/static/*"]
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/spectacular/static/*"]
