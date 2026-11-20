@@ -14,9 +14,12 @@
     "validate": "node cli/spectacular.mjs validate",
     "test:wasm": "node crates/chigutiro-wasm/tests/node.mjs 1000000",
     "dev": "npm run dev -w @spectacular/viz",
-    "build": "npm run build:wasm && npm run build -w @spectacular/viz",
+    "build": "npm run build:wasm && npm run build -w @spectacular/viz && npm run build:python",
     "test": "cargo test -p chigutiro && npm run test:wasm && npm test -w @spectacular/viz",
     "spectacular": "node cli/spectacular.mjs",
-    "test:cli": "node cli/test.mjs"
+    "test:cli": "node cli/test.mjs",
+    "build:python": "npm run build:notebook -w @spectacular/viz",
+    "test:python": "python -m pytest python/tests -q",
+    "test:jupyter": "node python/tests/jupyter.mjs"
   }
 }

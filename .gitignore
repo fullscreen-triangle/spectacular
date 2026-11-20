@@ -101,3 +101,6 @@ examples/local/
 
 # Local toolbelt notes (not part of spectacular)
 tools/
+
+# Built by npm run build:python into the Python package
+python/src/spectacular/static/

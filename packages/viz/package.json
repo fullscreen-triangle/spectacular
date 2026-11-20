@@ -12,7 +12,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "vite build && node test/e2e.mjs 1000000"
+    "test:e2e": "vite build && node test/e2e.mjs 1000000",
+    "build:notebook": "vite build -c vite.notebook.config.ts"
   },
   "dependencies": {
     "chigutiro-wasm": "*",
