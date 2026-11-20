@@ -1,0 +1,16 @@
+[package]
+name = "spectacular"
+description = "The spectacular command: compiles chart descriptions to view specs, validates specs, writes standalone pages"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "spectacular"
+path = "src/main.rs"
+
+[dependencies]
+# preserve_order: problems are reported in the order keys appear, as the TypeScript validator does.
+serde_json = { version = "1", features = ["preserve_order"] }
