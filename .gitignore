@@ -98,3 +98,6 @@ dist/
 
 # Private specs and data dropped in by other repos (served at /local/...)
 examples/local/
+
+# Local toolbelt notes (not part of spectacular)
+tools/
