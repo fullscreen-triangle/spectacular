@@ -96,6 +96,16 @@ caller in standard-library Python.
 | `arc` | edges: nominal `source` and `target` | click an arc or a node (`"select"`) |
 | `sankey` | edges: nominal `source` and `target` | click a flow or a node (`"select"`) |
 | `network3d` | edges: nominal `source` and `target`, laid out in 3D | click a node (`"select"`) |
+| `layers` | edges as a directed graph in layers, left to right | click a flow or a node (`"select"`) |
+| `strip` | a number `x` against a category `y` | range of the value (`"x"`) |
+| `matrix` | two categories, a cell per pair | click a cell or a row or column label (`"select"`) |
+| `interval` | `low` to `high` per row, banded by a `label` | rows overlapping a range (`"x"`) |
+
+`bars` take a second category as `color` and split each bar into it. A field can declare
+its categories' order (`fields.<f>.domain`) and colours (`fields.<f>.palette`, a list or by
+name), which every view of it follows. A spec `key` names rows: selections report it, and
+rows can be selected from outside by it. `examples/bundle.desc.json` and
+`examples/lineage.desc.json` use all of these on tables shaped like a view bundle's.
 
 `data` is `{ "url" }` (CSV, TSV or JSON rows), `{ "values": [...] }`, or
 `{ "columns": "external" }` with columns passed in by the embedding program. With `url`,
@@ -162,9 +172,10 @@ or the whole mask when that is smaller, and the GPU gets one byte per point per 
 ## Status
 
 Working: the crossfilter and its WebAssembly (WASM) bindings, the spec, validator and
-JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are eight view types:
-WebGL2 scatter, three.js 3D scatter, density grid, histogram and bars, and the arc, sankey
-and network3d edge views. Axes have gridlines and readable tick labels, colour has a key,
+JSON Schema, and CSV/TSV/JSON/JSON-LD/inline/external data. There are twelve view types:
+WebGL2 scatter and strip, three.js 3D scatter, density grid, histogram, bars (also split
+by a second category), matrix and interval, and the arc, sankey, network3d and layers edge
+views. Fields can declare a category order and colours, and a key names rows. Axes have gridlines and readable tick labels, colour has a key,
 and four themes cover the web, dark pages and print. The `spectacular` command validates
 specs, renders SVG, PDF and PNG figures at physical size, and serves a viewer that
 reports selections. The Python package shows the views in Jupyter, with selections

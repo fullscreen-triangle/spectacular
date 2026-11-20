@@ -150,7 +150,8 @@ data.
 | `description` | string | no | Not displayed; use it for provenance. |
 | `theme` | `"auto"` \| `"light"` \| `"dark"` \| `"paper"` | no | Default `"auto"`: follow the page's colour scheme (in a notebook, the notebook's theme). `"paper"` is for print: white, no panel borders, darker axes. |
 | `data` | object | **yes** | §4.2. |
-| `fields` | object | no | Field types and axis titles, §4.3. |
+| `fields` | object | no | Field types, axis titles, category orders and colours, §4.3. |
+| `key` | string | no | A field whose values identify rows. Selections then name rows by it, and rows can be selected from outside by it (§7, §8.6). It loads as a category and uses one crossfilter dimension. |
 | `views` | array | **yes** | At least one view, §4.5. |
 | `layout` | object | no | `{ "columns": n }`, n an integer from 1 to 12. The default is the smaller of 3 and the number of views. |
 | `output` | object | no | `{ "interactive": bool, "figure": { "format": "svg" \| "pdf" \| "png", "width": n, "unit"?: "mm" \| "in" \| "px", "dpi"?: n } }`. `figure` sets the default size for `spectacular render` (§8.3). `interactive` is accepted and not yet used. |
@@ -185,7 +186,7 @@ are ignored.
 
 ### 4.3 `fields`
 
-`"fields": { "<name>": { "type": "quantitative" | "nominal", "title": "axis label" } }`
+`"fields": { "<name>": { "type": "quantitative" | "nominal", "title": "axis label", "domain": [...], "palette": [...] } }`
 
 - **Type inference** when `type` is omitted: a field is `quantitative` if every
   non-empty value parses as a finite number, and `nominal` otherwise. Declare the type
@@ -195,6 +196,18 @@ are ignored.
   by any active range brush on that field. An empty nominal cell becomes the category
   `""`.
 - `title` labels axes. It defaults to the field name.
+- **`domain`** lists a nominal field's categories in order, each once. Every view of
+  the field draws them in that order, also a category with no rows (bars keep its band,
+  a sankey its place). Values the list does not name follow it, in order of first
+  appearance.
+- **`palette`** gives a nominal field's colours, used by every view that draws the
+  field's categories: bars, split bars, a scatter or strip coloured by it, and sankey
+  and layers nodes. Either a list (1 to 32 colours, in the order of `domain`, or of
+  first appearance) or category name to colour; categories it does not name take the
+  default colours in turn. A view's own `palette` wins over it. Colours belong to
+  categories, so a category keeps its colour when filters remove others.
+- A field with a `domain` or a `palette` is nominal; declaring it `quantitative` as well
+  is an error.
 
 ### 4.4 Field types each view needs
 
@@ -202,10 +215,13 @@ are ignored.
 |---|---|---|---|
 | `scatter` | `x`, `y` | | `color` |
 | `histogram` | `field` | | |
-| `bars` | | `field` | |
+| `bars` | | `field`, `color` | |
 | `density` | `x`, `y` | | |
 | `scatter3d` | `x`, `y`, `z` | | `color` |
-| `arc`, `sankey`, `network3d` | | `source`, `target` | |
+| `strip` | `x` | `y` | `color` |
+| `matrix` | | `x`, `y` | |
+| `interval` | `low`, `high` | `label` | `color` |
+| `arc`, `sankey`, `network3d`, `layers` | | `source`, `target` | |
 
 ### 4.5 Views
 
@@ -217,12 +233,16 @@ optional `title` (defaults to `id`), `height` (plot height in CSS pixels) and `s
 |---|---|---|---|
 | `scatter` | `x`, `y`, `color?`, `brush?`, `pointSize?`, `fill?`, `palette?` | `"xy"` (rectangle) or `"none"` | brush `"xy"`, height 320 |
 | `histogram` | `field`, `bins?`, `brush?`, `fill?` | `"x"` (range) or `"none"` | bins 60, brush `"x"`, height 200 |
-| `bars` | `field`, `brush?`, `palette?` | `"select"` (click a category to toggle it) or `"none"` | brush `"select"`, height 22 px per category, between 120 and 420 |
+| `bars` | `field`, `color?`, `brush?`, `palette?` | `"select"` (click a category to toggle it) or `"none"` | brush `"select"`, height 22 px per category, between 120 and 420 |
 | `density` | `x`, `y`, `bins?` (`[xBins, yBins]`) | none | bins `[128, 128]`, height 300 |
 | `scatter3d` | `x`, `y`, `z`, `color?`, `pointSize?`, `fill?`, `palette?` | none (drag to orbit, scroll to zoom) | height 360 |
+| `strip` | `x` (the value), `y` (the category), `color?`, `brush?`, `pointSize?`, `fill?`, `palette?` | `"x"` (range of the value) or `"none"` | brush `"x"`, height 30 px per category, between 120 and 480 |
+| `matrix` | `x`, `y`, `brush?` | `"select"` (click a cell, or a row or column label) or `"none"` | brush `"select"`, height 26 px per `y` category, between 80 and 480 |
+| `interval` | `low`, `high`, `label?`, `color?`, `scale?` (`"shared"` or `"label"`), `brush?`, `fill?`, `palette?` | `"x"` (rows overlapping a range) or `"none"`; none with `scale: "label"` | scale `"shared"`, brush `"x"`, height 8 px per row, between 120 and 520 |
 | `arc` | `source`, `target`, `order?` (`"count"`, `"name"` or `"data"`), `brush?` | `"select"` (click an arc or a node) or `"none"` | order `"count"`, brush `"select"`, height 300 |
 | `sankey` | `source`, `target`, `brush?` | `"select"` (click a flow, or a node on either side) or `"none"` | brush `"select"`, height 360 |
 | `network3d` | `source`, `target`, `brush?` | `"select"` (click a node) or `"none"`; drag to orbit, scroll to zoom | brush `"select"`, height 420 |
+| `layers` | `source`, `target`, `brush?` | `"select"` (click a flow or a node) or `"none"` | brush `"select"`, height 360 |
 
 Constraints:
 - **`bins`:** an integer from 1 to 10,000 for histograms; each of the pair an integer
@@ -266,7 +286,27 @@ What each view draws:
   by the rows that touch them; edges fade as the filters empty them. The 24 busiest
   nodes are labelled.
 
-**`color`:** a nominal field uses Tableau 10 by category; a quantitative field uses
+- **`bars` with `color`:** each bar split into the categories of a second nominal field,
+  stacked in that field's colours, with a key. Clicking a bar still selects its whole
+  category; the selection reports categories of `field`.
+- **`strip`:** one band per category of `y`, each row a point at its value of `x`,
+  spread across the band so equal values stay visible. Without `color` it is coloured by
+  its category when that field declares a `palette`.
+- **`matrix`:** one cell per pair of categories that occurs, shaded by the rows holding
+  it after the other views' filters (light to dark, square-root scale), with the count
+  written in cells large enough. A cell emptied by filters keeps a faint outline.
+- **`interval`:** each row a line from `low` to `high` on a lane of its own, grouped in
+  bands by `label` and ordered by low end within a band; rows missing either end are
+  left out. With `scale: "label"` each band has its own scale, for quantities in
+  different units, with its ends printed at the band's corners. A brush keeps the rows
+  whose interval overlaps the range (low end at or below its top, high end at or above
+  its bottom), reported as `overlaps`.
+- **`layers`:** a directed graph left to right: each node one layer after the furthest
+  node leading to it, nodes ordered within a layer to keep flows short, flows as wide as
+  their rows. An edge that closes a cycle (found by depth-first search) loops back under
+  the graph, dashed. For pipelines of steps and rows passing between them.
+
+**`color`:** a nominal field uses Tableau 10 by category, or the field's `palette`; a quantitative field uses
 viridis over the field's extent. Without `color`, points use one colour. A key under the
 view's title names the colours: swatches for up to 12 categories (then "+N more"), or the
 viridis ramp between the field's minimum and maximum. A density view's key shows its
@@ -278,9 +318,11 @@ centred along each axis. Titles come from `fields.<name>.title`, else the field 
 
 ### 4.6 Limits
 
-- **32 crossfilter dimensions per spec.** A scatter with a brush uses 2, density 2,
-  histogram 1, bars 1, arc 1, sankey 1, network3d 1, and scatter3d 0. The validator reports a spec that exceeds the
-  limit.
+- **32 crossfilter dimensions per spec.** The validator reports a spec that needs more.
+  - 2: a scatter or an interval with a brush, and density.
+  - 1: histogram, bars, a strip with a brush, matrix, arc, sankey, network3d, layers, and
+    a `key`.
+  - 0: scatter3d, and a scatter, strip or interval without a brush.
 - **Memory.** Each dimension holds its own copy of its field: 8 bytes per row for
   numbers, 4 for category codes, plus 4 bytes per row for the sort order. On top of
   that come 5 bytes per row of filter state, and the page's own copies for drawing.
@@ -308,19 +350,38 @@ passes through it unchanged, so either form works everywhere a description does.
   underscores, and have aliases (`x-axis`, `colour`, `chart` for `type`, `from` and `to`
   for `source` and `target`). Column names match the same way; a name that matches no
   column gets a suggestion.
-- **Chart types from the columns**, when `type` is absent. One number is a histogram and
-  one category is bars. Two numbers are a scatter, or a density above 200,000 rows; three
-  are a 3D scatter. `from` and `to` are a sankey. A category against a number is refused with a
-  suggestion, as there is no chart for that pair yet.
+- **Chart types from the columns**, when `type` is absent:
+
+  | Columns | Chart |
+  |---|---|
+  | one number | `histogram` |
+  | one category | `bars` (with a category `color`: split bars) |
+  | two numbers | `scatter`, or `density` above 200,000 rows |
+  | a number and a category | `strip` (the value across, the categories down) |
+  | two categories | `matrix` |
+  | three numbers | `scatter3d` |
+  | `low` and `high` (and a category as `y`) | `interval` |
+  | `from` and `to` | `sankey`; `"type": "arc"`, `"network"` or `"layers"` for the others |
+
 - **Colours.** `color` is a column to colour by, one colour, or a list of colours;
-  `palette` lists category colours. A histogram takes one colour (`fill`), bars a palette,
-  scatters all three. A palette given with a colour column also colours the bar charts of
-  that column, so a category keeps its colour across charts. These become the spec's
-  `color`, `fill` and `palette` (§4.5).
+  `palette` lists category colours. A histogram takes one colour (`fill`); bars a palette,
+  or a category column to split by; point charts, strips and intervals all three. A
+  palette given with a category column becomes that field's `palette` (§4.3), so every
+  chart of the column shows the same colours. These become the spec's `color`, `fill`
+  and `palette` (§4.5).
+- **`scale`** on an interval: `"each"` (or `"label"`) for a scale per band, `"shared"` for
+  one axis.
 - **Around the charts:** `charts` holds them (or give a list at the top, or one chart's
-  keys at the top). Beside it: `title`, `theme`, `labels` (axis label per column),
-  `categorical` (numeric columns that are categories), `columns` (charts per row), `data`
-  (a file, when no table is given otherwise) and `figure` (§8.3's size).
+  keys at the top). Beside it:
+  - `title` and `theme`;
+  - `labels`: an axis label per column;
+  - `categorical`: numeric columns that are categories;
+  - `domains`: a column's categories in order, and `palettes`: a column's colours (a
+    list or by name); both become `fields` (§4.3);
+  - `key`: the column naming rows;
+  - `columns`: charts per row;
+  - `data`: a file, when no table is given otherwise;
+  - `figure`: §8.3's size.
 - **Ids and titles** are made from the columns (`"od600 vs time_h"`, id
   `od600-vs-time-h`), unless given.
 - **Problems** point at the description's own keys, e.g.
@@ -401,6 +462,10 @@ handle.destroy();
     same object `spectacular serve` prints (§8.4);
   - `selectedRows()`: the selected row indices (0-based, in data order) as a
     `Uint32Array`;
+  - `selectedKeys()`: the spec `key` values of the selected rows;
+  - `select(keys)`: selects rows from outside by `key`, as one more filter on top of the
+    brushes (`null` clears it), and returns how many of the keys the data holds. A page
+    that holds the selection elsewhere passes its row ids here, and every view shows them;
   - `toSVG()`: the views as they are now, including any brushes, as a standalone SVG
     document (a string), built the same way as `render`'s SVG (§8.3);
   - `destroy()`.
@@ -507,9 +572,15 @@ stopped (ctrl-c, or the signals `SIGINT` and `SIGTERM`). With `--json` it prints
 ```
 
 - **`selection`** is printed after each brush settles (150 ms without change). A row is
-  selected when it passes every filter. A filter is either `range` (inclusive at both
-  ends, in data units, never matching a missing value) or `values` (the chosen
-  categories). `filters` is empty when nothing is brushed. A program can apply the
+  selected when it passes every filter. A filter is one of these:
+  - `range`: inclusive at both ends, in data units, never matching a missing value;
+  - `values`: the chosen categories of the field (bars, split bars), `"a × b"` pairs (a
+    matrix), or `"source → target"` (edge views);
+  - `overlaps: [a, b]`, for an interval: `field` is the low end and `to` the high end, and
+    an open end is `null`.
+
+  Rows selected from outside by key show as a filter with `view` `""` and the key field.
+  With a spec `key`, the event also lists the selected rows' `keys`. `filters` is empty when nothing is brushed. A program can apply the
   filters to its own copy of the data and get exactly the selected rows.
 - **`indices`** (only with `--indices`) lists the selected rows, 0-based, in data order.
   At millions of rows this is large; prefer `filters` there.
@@ -570,6 +641,8 @@ w.selected_data()             # df.iloc[w.selected_rows]
 w.on_select(callback)         # called with the selection after each brush settles
 w.update(spec=new_spec)       # redraw with a new spec or data= (brushes are cleared)
 w.save_svg("now.svg")         # what the view shows now, brushes included (§8.3's SVG)
+w.selected_keys               # the `key` values of the selected rows
+w.select(["r001", "r007"])    # select rows by key from Python, on top of the brushes; None clears
 w.problems                    # the spec's problems, as the page reported them
 
 sp.save_html(spec, "views.html", data=df)   # one offline page; nothing is reported back
@@ -618,8 +691,10 @@ Do not write specs that rely on these; the validator will reject most of them:
   be set in the spec.
 - **Arrow or Parquet input.** Use CSV, TSV, JSON rows, inline values or external
   columns.
-- **Uncertainty.** There are no error bars or bands. Put a value and its resolution in
-  two columns, and plot each.
+- **Uncertainty as error bars on points.** A quantity with two ends is an `interval`;
+  a value with a resolution has no mark of its own yet.
+- **One chart per value of a field** (facets, small multiples): repeat the description
+  per value and filter the table, or use one description per table.
 - **Data transforms.** There are no derived fields, aggregation, joins or multiple
   datasets. Compute them in your repo first and write the result to the data file.
 - **Initial brushes in the spec**, or a programmatic brush API.

@@ -33,10 +33,12 @@ spacing.
 |---|---|
 | `x`, `y`, `z` (or `x-axis`, `y-axis`, `z-axis`) | columns on each axis |
 | `from`, `to` | columns of an edge table: a node to another |
+| `low`, `high` | the two ends of a quantity, drawn as an interval |
 | `color` (or `colour`) | a column to colour by, one colour (`"teal"`, `"#4e79a7"`), or a list of colours |
 | `palette` (or `colors`) | the colours for the categories, in order of first appearance |
 | `type` (or `chart`) | ask for a chart type instead of the inferred one |
 | `title`, `bins`, `size`, `height`, `wide` | panel title, histogram bins, point size, plot height, full width |
+| `scale` | on an interval: `"each"` for a scale per band (quantities in different units) |
 | `brush` | `false` to stop the chart filtering the others |
 
 The chart type follows from the columns when `type` is not given:
@@ -44,10 +46,13 @@ The chart type follows from the columns when `type` is not given:
 | Columns | Chart |
 |---|---|
 | one number | histogram |
-| one category | bars (click to select) |
+| one category | bars (click to select); with a category `color`, each bar split into it |
 | two numbers | scatter (a density above 200,000 rows) |
+| a number and a category | strip: one row of points per category |
+| two categories | matrix: a cell per pair, shaded by its rows |
+| `low` and `high` | interval, banded by a category given as `y` |
 | three numbers | 3D scatter |
-| `from` and `to` | sankey (`"type": "arc"` or `"network"` for the others) |
+| `from` and `to` | sankey (`"type": "arc"`, `"network"` or `"layers"` for the others) |
 
 Around the charts:
 
@@ -57,12 +62,15 @@ Around the charts:
 | `title`, `theme` | the heading; `"light"`, `"dark"` or `"paper"` (default: the notebook's) |
 | `labels` | axis labels by column, e.g. `{"od600": "OD600"}` |
 | `categorical` | columns of numbers that are categories, e.g. `["well"]` |
+| `domains` | a column's categories in order, e.g. `{"way": ["stated", "supplied", "tool"]}`; empty ones keep their place |
+| `palettes` | a column's colours, everywhere it is drawn: a list, or by name, e.g. `{"outcome": {"published": "#1baf7a"}}` |
+| `key` | the column whose values name rows, e.g. `"row"` |
 | `columns` | charts per row |
 | `data` | a CSV, TSV or JSON file, when no table is given in Python |
 | `figure` | print size for `render`, e.g. `{"format": "pdf", "width": 180, "unit": "mm"}` |
 
-A palette given with `color` follows that column everywhere: bar charts of it use the same
-colours. Mistakes come back at the key you wrote, with a suggestion:
+A palette given with `color` for a category column becomes that column's own, so every
+chart of it uses the same colours. Mistakes come back at the key you wrote, with a suggestion:
 `/charts/0/x-axis: no column "od60"; did you mean "od600"?`. In a notebook they show in
 the cell, where the charts would have been.
 
@@ -81,6 +89,8 @@ w.selected_data()                   # the brushed rows of df
 w.on_select(lambda s: print(s["selected"]))   # after each brush settles
 w.update(description)               # draw a new description over the same data
 w.save_svg("plate.svg")             # what the charts show now, brushes included
+w.selected_keys                     # with a "key": the key values of the brushed rows
+w.select(["r001", "r007"])          # with a "key": show rows chosen elsewhere, in every chart
 
 sp.validate(description, data=df)   # the problems, each {"path", "message"}; [] when it holds
 sp.save_html(description, "plate.html", data=df)   # one offline page with the linked charts
