@@ -68,10 +68,11 @@ export function neededFields(spec: Spec): string[] {
   return [...names];
 }
 
-function fromRows(spec: Spec, rows: Record<string, unknown>[]): Table {
+/** `header` lists a CSV's columns, so a field is known to be absent even with no rows. */
+function fromRows(spec: Spec, rows: Record<string, unknown>[], header?: string[]): Table {
   const columns = new Map<string, Column>();
   for (const name of neededFields(spec)) {
-    if (rows.length && !(name in rows[0]!)) continue;
+    if (header ? !header.includes(name) : rows.length && !(name in rows[0]!)) continue;
     const raw = rows.map((r) => r[name]);
     const type = spec.fields?.[name]?.type ?? infer(raw);
     columns.set(name, type === "quantitative" ? quantitative(toNumbers(raw)) : nominal(raw));
@@ -117,7 +118,8 @@ export async function loadTable(
   const text = await res.text();
   const format = data.format ?? (/\.json(ld)?(\?|#|$)/i.test(data.url) ? "json" : /\.tsv(\?|#|$)/i.test(data.url) ? "tsv" : "csv");
   if (format === "json") return fromRows(spec, rowsAt(JSON.parse(text), data.pointer ?? ""));
-  return fromRows(spec, dsvFormat(format === "tsv" ? "\t" : ",").parse(text) as unknown as Record<string, unknown>[]);
+  const parsed = dsvFormat(format === "tsv" ? "\t" : ",").parse(text);
+  return fromRows(spec, parsed as unknown as Record<string, unknown>[], parsed.columns);
 }
 
 /** Follows an RFC 6901 JSON Pointer to the array of row objects inside a document. */
