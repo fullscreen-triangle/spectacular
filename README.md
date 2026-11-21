@@ -43,8 +43,15 @@ sp.render(description, "fig.pdf", data=df)         # a figure at print size
 The wheel carries the browser runtime and a native `spectacular` command, built from
 `crates/spectacular`, which compiles descriptions and validates specs without Node. Its
 validator is a port of the TypeScript one, and `npm run test:conformance` holds the two to
-the same answers. More in [`python/README.md`](python/README.md) and
-[`examples/notebooks/spectacular-in-jupyter.ipynb`](examples/notebooks/spectacular-in-jupyter.ipynb).
+the same answers.
+
+**Documentation: <https://fullscreen-triangle.github.io/spectacular/>** (built from
+[`docs/`](docs/) by `npm run docs:build`): a quickstart, a guide with a picture of every
+chart type, the Python API and every description key. [`docs/for-ai.md`](docs/for-ai.md)
+is the description language on one page for agents, and [`docs/llms.txt`](docs/llms.txt)
+indexes the site for them. [`python/README.md`](python/README.md) is the PyPI page, and
+[`examples/notebooks/spectacular-in-jupyter.ipynb`](examples/notebooks/spectacular-in-jupyter.ipynb)
+a notebook to start from.
 
 ## Handing spectacular a task
 

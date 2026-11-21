@@ -1,0 +1,31 @@
+# spectacular-charts
+
+> Linked, crossfiltered charts for Python and Jupyter, described in JSON instead of plotting code. Install `spectacular-charts`, import `spectacular`. A description names columns; chart types are inferred from column types; brushing one chart filters the others; problems come back as {"path", "message"} pairs.
+
+Start with the agent guide: it is complete on its own.
+
+## For agents
+
+- [spectacular-charts for AI agents](https://fullscreen-triangle.github.io/spectacular/for-ai/): the whole description language, inference rules, colours, recipes, errors and outputs on one page
+- [Plain-text agent guide](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/for-ai.md): the same page as Markdown
+- [Description keys](https://fullscreen-triangle.github.io/spectacular/reference/keys/): every key and alias the compiler accepts
+- [View specs](https://fullscreen-triangle.github.io/spectacular/reference/spec/): the exact spec format descriptions compile to
+- [Full specification for programs](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/spectacular-specifications.md): spec, commands, embedding, limits
+
+## Guide
+
+- [Quickstart](https://fullscreen-triangle.github.io/spectacular/quickstart/)
+- [Describing charts](https://fullscreen-triangle.github.io/spectacular/guide/describing/)
+- [Chart types](https://fullscreen-triangle.github.io/spectacular/guide/chart-types/)
+- [Colours, orders and themes](https://fullscreen-triangle.github.io/spectacular/guide/colours/)
+- [Brushing and selections](https://fullscreen-triangle.github.io/spectacular/guide/selections/)
+- [Notebooks](https://fullscreen-triangle.github.io/spectacular/guide/notebooks/)
+- [Figures and pages](https://fullscreen-triangle.github.io/spectacular/guide/figures/)
+- [Data](https://fullscreen-triangle.github.io/spectacular/guide/data/)
+- [Command line](https://fullscreen-triangle.github.io/spectacular/guide/command-line/)
+
+## Optional
+
+- [Python API](https://fullscreen-triangle.github.io/spectacular/reference/python/)
+- [Troubleshooting](https://fullscreen-triangle.github.io/spectacular/troubleshooting/)
+- [Changelog](https://fullscreen-triangle.github.io/spectacular/changelog/)

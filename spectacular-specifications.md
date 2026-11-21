@@ -140,6 +140,7 @@ data.
 
 ## 4. Spec reference
 
+<!-- --8<-- [start:spec] -->
 ### 4.1 Top level
 
 | Property | Type | Required | Meaning |
@@ -330,6 +331,8 @@ centred along each axis. Titles come from `fields.<name>.title`, else the field 
   views accordingly at that scale.
 - **Rows:** at most 4,294,967,295 (the crossfilter indexes rows with 32 bits). The
   demo's synthetic generator caps itself at 20 million.
+
+<!-- --8<-- [end:spec] -->
 
 ### 4.7 Chart descriptions: the short form
 

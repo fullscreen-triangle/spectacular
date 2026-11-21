@@ -104,3 +104,6 @@ tools/
 
 # Built by npm run build:python into the Python package
 python/src/spectacular/static/
+
+# The built documentation site (mkdocs build)
+/site/
