@@ -77,9 +77,12 @@ def is_spec(value: Any) -> bool:
 
 
 def fields_used(spec: Dict[str, Any]) -> List[str]:
-    """The fields a spec reads: those its views name, then those it declares, without repeats."""
+    """The fields a spec reads: its key, those its views name, then those it declares,
+    without repeats."""
     keys = field_keys()
     names: List[str] = []
+    if isinstance(spec.get("key"), str):
+        names.append(spec["key"])
     for view in spec.get("views") or []:
         if not isinstance(view, dict):
             continue

@@ -191,6 +191,7 @@ def test_the_bundle_description_compiles_to_the_newer_views():
 
 def test_selecting_by_key_goes_to_the_page_and_keys_come_back(monkeypatch):
     w = sp.View({"key": "id", "x": "v"}, {"id": ["a", "b", "c"], "v": [1.0, 2.0, 3.0]})
+    assert set(w.columns) == {"id", "v"}  # the key column travels though no chart draws it
     sent = []
     monkeypatch.setattr(w, "send", sent.append)
     w.select(["a", "c"])
