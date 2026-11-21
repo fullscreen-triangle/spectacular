@@ -23,6 +23,7 @@ colours. Full view specs (`spectacular-specifications.md`) are accepted everywhe
 description is. `save_html` writes the views as an offline page; `render` draws a figure.
 """
 
+from . import datasets
 from ._cli import SpectacularError, render, validate
 from ._data import DescriptionError
 from ._magic import load_ipython_extension
@@ -47,6 +48,7 @@ __all__ = [
     "SPEC_VERSION",
     "DescriptionError",
     "chart",
+    "datasets",
     "load_ipython_extension",
     "HTMLView",
     "SpectacularError",
