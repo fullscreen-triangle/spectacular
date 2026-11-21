@@ -1,136 +1,118 @@
-# spectacular for Python
+# spectacular-charts
 
-Linked, crossfiltered charts in Jupyter, described in JSON instead of written as plotting
-code. Brush a range in one chart and every other chart filters. The filtering runs in the
-browser, in a WebAssembly crossfilter, so it stays interactive at millions of rows.
+[![PyPI](https://img.shields.io/pypi/v/spectacular-charts)](https://pypi.org/project/spectacular-charts/)
+[![Python](https://img.shields.io/pypi/pyversions/spectacular-charts)](https://pypi.org/project/spectacular-charts/)
+[![Docs](https://img.shields.io/badge/docs-fullscreen--triangle.github.io%2Fspectacular-4e79a7)](https://fullscreen-triangle.github.io/spectacular/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-59a14f)](https://github.com/fullscreen-triangle/spectacular)
 
-```python
-import spectacular        # once; it also turns on the %%spectacular cell magic
+**Linked, crossfiltered charts for Python and Jupyter, described in JSON instead of
+written as plotting code.**
+
+Describe the charts you want, and the chart types follow from the columns. Then brush a
+range in any chart and every other chart filters to the rows inside it. The filtering
+runs in the browser, in a crossfilter written in Rust and compiled to WebAssembly, so it
+stays interactive on large tables. Python reads back what you selected.
+
+![Five linked charts of a 96-well growth plate](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/hero.png)
+
+```bash
+pip install "spectacular-charts[notebook]"
 ```
-
-```python
-%%spectacular df
-{"title": "Growth plate",
- "labels": {"od600": "OD600"},
- "charts": [
-   {"x-axis": "time_h", "y-axis": "od600", "color": "medium"},
-   {"x": "rate", "color": "teal"},
-   {"x": "medium", "wide": true}
- ]}
-```
-
-That cell draws a scatter of optical density (OD600) over time coloured by medium, a teal histogram of
-growth rates, and a bar chart of media across the full width, all linked. Nothing in it is
-code: the chart types follow from the columns.
-
-## Describing charts
-
-A description is JSON (or a Python dict). The keys are forgiving: `"x-axis"`,
-`"X axis"` and `"x_axis"` are one key, and column names match without regard to case or
-spacing.
-
-| Key | Means |
-|---|---|
-| `x`, `y`, `z` (or `x-axis`, `y-axis`, `z-axis`) | columns on each axis |
-| `from`, `to` | columns of an edge table: a node to another |
-| `low`, `high` | the two ends of a quantity, drawn as an interval |
-| `color` (or `colour`) | a column to colour by, one colour (`"teal"`, `"#4e79a7"`), or a list of colours |
-| `palette` (or `colors`) | the colours for the categories, in order of first appearance |
-| `type` (or `chart`) | ask for a chart type instead of the inferred one |
-| `title`, `bins`, `size`, `height`, `wide` | panel title, histogram bins, point size, plot height, full width |
-| `scale` | on an interval: `"each"` for a scale per band (quantities in different units) |
-| `brush` | `false` to stop the chart filtering the others |
-
-The chart type follows from the columns when `type` is not given:
-
-| Columns | Chart |
-|---|---|
-| one number | histogram |
-| one category | bars (click to select); with a category `color`, each bar split into it |
-| two numbers | scatter (a density above 200,000 rows) |
-| a number and a category | strip: one row of points per category |
-| two categories | matrix: a cell per pair, shaded by its rows |
-| `low` and `high` | interval, banded by a category given as `y` |
-| three numbers | 3D scatter |
-| `from` and `to` | sankey (`"type": "arc"`, `"network"` or `"layers"` for the others) |
-
-Around the charts:
-
-| Key | Means |
-|---|---|
-| `charts` | the list of charts (or give a list at the top, or one chart's keys at the top) |
-| `title`, `theme` | the heading; `"light"`, `"dark"` or `"paper"` (default: the notebook's) |
-| `labels` | axis labels by column, e.g. `{"od600": "OD600"}` |
-| `categorical` | columns of numbers that are categories, e.g. `["well"]` |
-| `domains` | a column's categories in order, e.g. `{"way": ["stated", "supplied", "tool"]}`; empty ones keep their place |
-| `palettes` | a column's colours, everywhere it is drawn: a list, or by name, e.g. `{"outcome": {"published": "#1baf7a"}}` |
-| `key` | the column whose values name rows, e.g. `"row"` |
-| `columns` | charts per row |
-| `data` | a CSV, TSV or JSON file, when no table is given in Python |
-| `figure` | print size for `render`, e.g. `{"format": "pdf", "width": 180, "unit": "mm"}` |
-
-A palette given with `color` for a category column becomes that column's own, so every
-chart of it uses the same colours. Mistakes come back at the key you wrote, with a suggestion:
-`/charts/0/x-axis: no column "od60"; did you mean "od600"?`. In a notebook they show in
-the cell, where the charts would have been.
-
-Full view specs, as [`spectacular-specifications.md`](../spectacular-specifications.md)
-describes them, are accepted everywhere a description is. `spectacular.schema()` returns
-their JSON Schema, for programs that generate specs.
-
-## From Python
 
 ```python
 import spectacular as sp
 
-w = sp.view(description, data=df)   # the cell's last expression: the charts appear
-w.selection                         # {"selected": 412, "rows": 2400, "filters": [{"view": "rate", "field": "rate", "range": [0.31, 0.42]}]}
-w.selected_data()                   # the brushed rows of df
-w.on_select(lambda s: print(s["selected"]))   # after each brush settles
-w.update(description)               # draw a new description over the same data
-w.save_svg("plate.svg")             # what the charts show now, brushes included
-w.selected_keys                     # with a "key": the key values of the brushed rows
-w.select(["r001", "r007"])          # with a "key": show rows chosen elsewhere, in every chart
+df = sp.datasets.plate()          # 2,400 readings of a 96-well plate
 
-sp.validate(description, data=df)   # the problems, each {"path", "message"}; [] when it holds
-sp.save_html(description, "plate.html", data=df)   # one offline page with the linked charts
-sp.render(description, "plate.pdf", data=df)       # a figure: .svg, .pdf or .png
+w = sp.view({
+    "title": "A 96-well growth plate",
+    "labels": {"od600": "OD600", "time_h": "time (h)"},
+    "charts": [
+        {"x": "time_h", "y": "od600", "color": "medium"},   # two numbers: a scatter
+        {"x": "medium"},                                    # a category: bars
+        {"x": "rate", "bins": 40},                          # a number: a histogram
+        {"x": "medium", "y": "rate"},                       # a category and a number: a strip
+    ],
+}, data=df)
+w
 ```
 
-`%%spectacular df --as w` keeps the charts in `w`; the line takes any expression
-(`df[df.medium == "rich"]`). `data=` takes a pandas or polars DataFrame, a dict of
-columns, a list of row dicts, or a numpy record array. Only the columns the charts use are
-sent, as binary arrays. Dates have no axis type yet; convert them to numbers first.
+Brush the histogram, click a bar, and then, in the next cell:
+
+```python
+w.selection          # {"selected": 380, "rows": 2400, "filters": [{"view": ..., "field": "rate", "range": [0.52, 0.61]}, ...]}
+w.selected_data()    # the brushed rows of df
+```
+
+Or skip Python altogether: after `import spectacular`, a cell can hold only the
+description.
+
+```
+%%spectacular df
+{"charts": [{"x-axis": "time_h", "y-axis": "od600", "color": "medium"}, {"x": "rate"}]}
+```
+
+## Why describe charts?
+
+- **No plotting code.** A description is plain data. `"x-axis"`, `"X axis"` and
+  `"x_axis"` are one key, and `od600` finds the column `OD600`.
+- **Mistakes come back at the key you wrote**, with a suggestion:
+  `/charts/0/y: no column "od60"; did you mean "od600"?`.
+- **Programs and models can write it.** The JSON is easy to generate and check, and
+  `sp.validate` returns problems as `{"path", "message"}`.
+- **Linked by default.** Every chart in a description filters every other one.
+
+## Twelve chart types
+
+| | | |
+|:-:|:-:|:-:|
+| ![scatter](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/scatter.png) **scatter**: two numbers | ![histogram](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/histogram.png) **histogram**: one number | ![split bars](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/split-bars.png) **bars**: a category, split by another |
+| ![strip](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/strip.png) **strip**: a number by a category | ![matrix](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/matrix.png) **matrix**: two categories | ![interval](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/interval.png) **interval**: low to high |
+| ![density](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/density.png) **density**: two numbers, millions of rows | ![3D scatter](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/scatter3d.png) **scatter3d**: three numbers | ![sankey](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/sankey.png) **sankey**: edges from → to |
+| ![layers](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/layers.png) **layers**: a pipeline of steps | ![arc](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/arc.png) **arc**: nodes on a line | ![network](https://raw.githubusercontent.com/fullscreen-triangle/spectacular/rebuild/docs/assets/network3d.png) **network3d**: a graph in 3D |
+
+How the type is chosen, and a description for each picture:
+[Chart types](https://fullscreen-triangle.github.io/spectacular/guide/chart-types/).
+
+## Figures and pages
+
+```python
+sp.render(description, "figure.pdf", data=df, width=85, unit="mm")   # SVG, PDF or PNG at print size
+sp.save_html(description, "plate.html", data=df)                     # one offline, interactive file
+w.save_svg("brushed.svg")                                            # what the charts show now
+```
+
+Themes: `"light"`, `"dark"`, `"paper"` (for print) and `"auto"`. Colours: a column, one
+colour, a list, or a column's own palette shared by every chart. Category order:
+`domains`.
 
 ## Install
 
 ```bash
-pip install spectacular-charts               # the charts, descriptions, offline pages
-pip install "spectacular-charts[notebook]"   # + interactive charts in Jupyter (anywidget)
-pip install "spectacular-charts[render]"     # + figures: then `python -m playwright install chromium`
+pip install spectacular-charts                        # descriptions, validation, offline pages, the CLI
+pip install "spectacular-charts[notebook]"            # + interactive charts in Jupyter (anywidget)
+pip install "spectacular-charts[render]"              # + figures; then: python -m playwright install chromium
 ```
 
-The import name is `spectacular`. The wheel carries everything it needs: the browser
-runtime and the native `spectacular` command (compiled Rust), which compiles descriptions
-and validates them without Node. The command is on the `PATH` after installing:
+The import name is `spectacular`. Wheels for Linux, macOS and Windows carry the browser
+runtime and a native `spectacular` command (compiled Rust) that compiles descriptions,
+validates specs and writes pages without Node:
 
 ```bash
 spectacular compile chart.json --data readings.csv   # the view spec a description makes
-spectacular validate spec.json                         # problems by path, exit 1 if any
+spectacular validate spec.json --json                # problems by path; exit 1 if any
 spectacular html chart.json --data readings.csv -o readings.html
 ```
 
-### From a checkout
+## Documentation
 
-The wheels are built by `.github/workflows/python-wheels.yml` for Linux, macOS and
-Windows. To build one here, with Rust, `wasm-pack` and Node installed:
+- **[Documentation](https://fullscreen-triangle.github.io/spectacular/)**: quickstart, guide, reference
+- [Describing charts](https://fullscreen-triangle.github.io/spectacular/guide/describing/) and [every key](https://fullscreen-triangle.github.io/spectacular/reference/keys/)
+- [Brushing and selections](https://fullscreen-triangle.github.io/spectacular/guide/selections/)
+- [Python API](https://fullscreen-triangle.github.io/spectacular/reference/python/)
+- [For AI agents](https://fullscreen-triangle.github.io/spectacular/for-ai/): the description language on one page
+- [Changelog](https://github.com/fullscreen-triangle/spectacular/blob/rebuild/python/CHANGELOG.md)
 
-```bash
-npm run build:wasm && npm install && npm run build   # the browser runtime, into python/src/spectacular/static
-cd python && maturin build --release --out dist      # a wheel for this machine
-pip install dist/*.whl
-```
-
-`maturin develop --release` installs it into the active environment for working on it.
-The runtime is generated and not committed, so `pip install` straight from the Git
-repository needs that build first.
+Source, issues and the full view-spec format:
+[github.com/fullscreen-triangle/spectacular](https://github.com/fullscreen-triangle/spectacular)
+(branch `rebuild`). MIT licence.

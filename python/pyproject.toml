@@ -10,9 +10,15 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Kundai Farai Sachikonye" }]
+keywords = ["visualization", "charts", "crossfilter", "jupyter", "anywidget", "webassembly", "linked-views", "brushing"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Framework :: Jupyter",
+    "Framework :: Jupyter :: JupyterLab",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
@@ -27,7 +33,11 @@ render = ["playwright>=1.40"]
 test = ["pytest", "anywidget>=0.9", "numpy", "pandas"]
 
 [project.urls]
-Source = "https://github.com/fullscreen-triangle/spectacular"
+Homepage = "https://fullscreen-triangle.github.io/spectacular/"
+Documentation = "https://fullscreen-triangle.github.io/spectacular/"
+Source = "https://github.com/fullscreen-triangle/spectacular/tree/rebuild"
+Issues = "https://github.com/fullscreen-triangle/spectacular/issues"
+Changelog = "https://github.com/fullscreen-triangle/spectacular/blob/rebuild/python/CHANGELOG.md"
 
 [tool.maturin]
 # The wheel carries the `spectacular` command (crates/spectacular) as a script, beside the
