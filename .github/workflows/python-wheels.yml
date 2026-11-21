@@ -1,13 +1,28 @@
 # Builds the `spectacular-charts` wheels: the Python package, its browser runtime, and the
-# native `spectacular` command compiled for each platform. Runs by hand, and on tags
-# named py-v* (e.g. py-v0.2.0), which also publish to PyPI through trusted publishing
-# (configure the project on PyPI first: https://docs.pypi.org/trusted-publishers/).
+# native `spectacular` command compiled for each platform, then installs each wheel alone
+# and runs the tests against it. Runs on pushes to rebuild that touch the package (build
+# and test only), by hand, and on tags named py-v* (e.g. py-v0.2.0), which also publish
+# to PyPI through trusted publishing: the project's publisher on PyPI names this
+# repository, this workflow (python-wheels.yml) and the environment `pypi`.
 name: python wheels
 
 on:
   workflow_dispatch:
   push:
     tags: ["py-v*"]
+    branches: [rebuild]
+    paths:
+      - "python/**"
+      - "crates/**"
+      - "packages/viz/src/**"
+      - "packages/viz/vite.notebook.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/python-wheels.yml"
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -41,7 +56,8 @@ jobs:
         include:
           - { os: ubuntu-latest, target: x86_64, manylinux: auto }
           - { os: ubuntu-latest, target: aarch64, manylinux: auto }
-          - { os: macos-13, target: x86_64 }
+          # Intel Macs are cross-compiled on an Apple silicon runner (macos-13 is retired).
+          - { os: macos-14, target: x86_64 }
           - { os: macos-14, target: aarch64 }
           - { os: windows-latest, target: x64 }
     runs-on: ${{ matrix.os }}
