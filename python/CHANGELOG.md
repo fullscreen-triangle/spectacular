@@ -3,6 +3,15 @@
 All notable changes to `spectacular-charts`. Versions follow [semantic versioning](https://semver.org);
 until 1.0, a minor version may change the description language.
 
+## 0.2.1 (unreleased)
+
+### Fixed
+
+- `render` works inside Jupyter on Windows. ipykernel 6 switches asyncio to the selector event
+  loop there, which cannot start the browser's process, so `render` failed with
+  `NotImplementedError`. It now runs Playwright in an event loop of its own thread (the proactor
+  loop on Windows) and leaves the kernel's policy as it is.
+
 ## 0.2.0 (2026-11-21)
 
 ### Added

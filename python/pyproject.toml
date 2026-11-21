@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "spectacular-charts"
-version = "0.2.0"
+version = "0.2.1"
 description = "Linked, crossfiltered charts in Jupyter, described in JSON instead of plotting code"
 readme = "README.md"
 requires-python = ">=3.9"

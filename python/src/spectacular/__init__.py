@@ -31,7 +31,7 @@ from ._html import save_html, to_html
 from ._spec import SPEC_VERSION, fields_used, load_spec, schema
 from ._view import HTMLView, View, show, view
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 #: Another name for `view`, for those who think in charts.
 chart = view

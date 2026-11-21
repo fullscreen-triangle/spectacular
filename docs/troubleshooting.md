@@ -47,6 +47,9 @@ pip install --force-reinstall spectacular-charts
   `python -m playwright install chromium`.
 - **`Executable doesn't exist at ...`** (from Playwright): the browser was not installed
   for this environment; run `python -m playwright install chromium` with the same Python.
+- **`NotImplementedError` in a notebook on Windows** (0.2.0 only): ipykernel 6 switches
+  asyncio to the selector event loop, which cannot start the browser. Upgrade with
+  `pip install -U spectacular-charts`; from 0.2.1, `render` uses an event loop of its own.
 - **Slow**: each figure starts a browser, a few seconds each. Draw many charts into one
   figure with `charts` rather than many figures.
 
