@@ -3,7 +3,7 @@
 All notable changes to `spectacular-charts`. Versions follow [semantic versioning](https://semver.org);
 until 1.0, a minor version may change the description language.
 
-## 0.2.1 (unreleased)
+## 0.2.1 (2026-11-21)
 
 ### Fixed
 
