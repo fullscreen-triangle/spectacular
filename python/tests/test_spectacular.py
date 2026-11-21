@@ -4,6 +4,7 @@ import array
 import json
 import math
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -259,3 +260,23 @@ def test_render_works_where_an_event_loop_runs(tmp_path):
         return sp.render({"x": "od600"}, tmp_path / "loop.svg", PLATE)
 
     assert asyncio.run(in_a_kernel()).read_text().startswith("<?xml")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the selector loop's limit is Windows'")
+@pytest.mark.skipif(not _can_render(), reason="needs Playwright for Python, or Node and the built viewer")
+def test_render_works_under_the_selector_loop_policy_ipykernel_sets_on_windows(tmp_path):
+    # ipykernel switches Windows to the selector loop, which cannot start subprocesses; a
+    # render whose loop followed the policy failed with NotImplementedError (0.2.0).
+    import asyncio
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        before = asyncio.get_event_loop_policy()
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        try:
+            out = sp.render({"x": "od600"}, tmp_path / "selector.svg", PLATE)
+            assert isinstance(asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy)  # left as it was
+        finally:
+            asyncio.set_event_loop_policy(before)
+    assert out.read_text().startswith("<?xml")

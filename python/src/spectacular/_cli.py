@@ -8,12 +8,14 @@ through the Node command of a spectacular checkout.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
 import re
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -84,19 +86,38 @@ def render(
         raise SpectacularError(f"unit must be mm, in or px, not {u!r}", exit=2)
     size = (width or figure.get("width") or 960, u, dpi or figure.get("dpi") or (192 if u == "px" else 300))
     try:
-        import playwright.sync_api  # noqa: F401
+        import playwright.async_api  # noqa: F401
     except ImportError:
         return _render_node(compiled, base, data, path, width, unit, dpi)
-    # A notebook kernel runs an asyncio loop, inside which Playwright's sync API refuses to
-    # start; a thread of its own has none.
     from concurrent.futures import ThreadPoolExecutor
 
     with ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_render_browser, compiled, base, data, path, fmt, *size).result()
+        return pool.submit(_render_in_own_loop, compiled, base, data, path, fmt, *size).result()
 
 
-def _render_browser(spec: Dict[str, Any], base: Path, data: Any, path: Path, fmt: str, width: float, unit: str, dpi: float) -> Path:
-    from playwright.sync_api import sync_playwright
+def _new_loop() -> asyncio.AbstractEventLoop:
+    """An event loop that can start the browser's process. On Windows that is the proactor
+    loop: ipykernel switches the process's policy to the selector loop, which cannot start
+    subprocesses, so a loop made from the policy fails there with NotImplementedError."""
+    if sys.platform == "win32":
+        return asyncio.ProactorEventLoop()
+    return asyncio.new_event_loop()
+
+
+def _render_in_own_loop(*args: Any) -> Path:
+    """Runs the render in a loop of this thread's own. A notebook kernel's thread already
+    runs a loop, which Playwright cannot share; this thread's loop is created here and
+    closed after, and the process's event-loop policy is left as it is."""
+    loop = _new_loop()
+    try:
+        return loop.run_until_complete(_render_browser(*args))
+    finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+
+async def _render_browser(spec: Dict[str, Any], base: Path, data: Any, path: Path, fmt: str, width: float, unit: str, dpi: float) -> Path:
+    from playwright.async_api import async_playwright
 
     from ._html import to_html
 
@@ -107,19 +128,19 @@ def _render_browser(spec: Dict[str, Any], base: Path, data: Any, path: Path, fmt
         document = to_html(spec, data, figure=True)
     finally:
         os.chdir(cwd)
-    with sync_playwright() as p:
-        browser = p.chromium.launch(args=_BROWSER_ARGS)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(args=_BROWSER_ARGS)
         try:
-            page = browser.new_page(viewport={"width": css_width, "height": 800}, device_scale_factor=dpi / 96, color_scheme="light")
-            page.set_content(document)
-            page.wait_for_function("document.body.dataset.state !== 'loading'", timeout=120_000)
-            if page.evaluate("document.body.dataset.state") == "error":
-                raise SpectacularError(page.inner_text("#spectacular"), exit=1)
-            page.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
+            page = await browser.new_page(viewport={"width": css_width, "height": 800}, device_scale_factor=dpi / 96, color_scheme="light")
+            await page.set_content(document)
+            await page.wait_for_function("document.body.dataset.state !== 'loading'", timeout=120_000)
+            if await page.evaluate("document.body.dataset.state") == "error":
+                raise SpectacularError(await page.inner_text("#spectacular"), exit=1)
+            await page.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
             root = page.locator("#spectacular .sv-root")
-            height = math.ceil(root.bounding_box()["height"])
+            height = math.ceil((await root.bounding_box())["height"])
             if fmt == "svg":
-                svg = page.evaluate("window.spectacular.toSVG()")
+                svg = await page.evaluate("window.spectacular.toSVG()")
                 if unit != "px":  # the root's width and height become physical lengths
                     def size(m: "re.Match[str]") -> str:
                         return f' {m.group(1)}="{round(float(m.group(2)) / _CSS_PX[unit], 3):g}{unit}"'
@@ -129,20 +150,20 @@ def _render_browser(spec: Dict[str, Any], base: Path, data: Any, path: Path, fmt
                     svg = f"{head}<svg{tag}>{body}"
                 path.write_text(svg, encoding="utf-8")
             elif fmt == "png":
-                root.screenshot(path=str(path))
+                await root.screenshot(path=str(path))
             else:
                 # Printing lays the page out again, and a cleared WebGL canvas would print
                 # blank, so canvases are fixed as images first.
-                page.evaluate("""() => { for (const c of document.querySelectorAll('canvas')) {
+                await page.evaluate("""() => { for (const c of document.querySelectorAll('canvas')) {
                     const img = document.createElement('img'); img.src = c.toDataURL('image/png');
                     img.style.cssText = c.style.cssText;
                     Object.assign(img.style, { width: c.clientWidth + 'px', height: c.clientHeight + 'px', display: 'block' });
                     c.replaceWith(img); } }""")
-                page.emulate_media(media="screen")
-                page.pdf(path=str(path), width=f"{css_width}px", height=f"{height}px", print_background=True,
-                         page_ranges="1", margin={"top": "0", "right": "0", "bottom": "0", "left": "0"})
+                await page.emulate_media(media="screen")
+                await page.pdf(path=str(path), width=f"{css_width}px", height=f"{height}px", print_background=True,
+                               page_ranges="1", margin={"top": "0", "right": "0", "bottom": "0", "left": "0"})
         finally:
-            browser.close()
+            await browser.close()
     return path
 
 

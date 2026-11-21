@@ -54,6 +54,17 @@ writeFileSync(join(dir, "demo.ipynb"), JSON.stringify({
     ]),
     code(["w.save_svg('from-notebook.svg')"]),
     code(["%%spectacular df\n", "{\"charts\": [{\"x\": \"grop\"}]}"]),
+    // render from inside the kernel: on Windows ipykernel sets the selector event loop,
+    // under which 0.2.0 could not start the browser.
+    code([
+      "try:\n",
+      "    import playwright.async_api\n",
+      "except ImportError:\n",
+      "    print('RENDER skipped: no playwright in this kernel')\n",
+      "else:\n",
+      "    out = sp.render({'x': 'r', 'bins': 30}, 'rendered.png', data=df)\n",
+      "    print('RENDER', out.stat().st_size)",
+    ]),
   ],
 }));
 
@@ -157,6 +168,11 @@ try {
   await inCell(4, ".sv-problems").waitFor({ timeout: 30_000 });
   const problem = await inCell(4, ".sv-problems").innerText();
   ok(problem.includes("/charts/0/x") && problem.includes('did you mean "group"'), `a misspelt column shows its problem in the cell (${problem.replace(/\s+/g, " ").trim()})`);
+
+  await run(5);
+  const rendered = (await output(5)).trim();
+  if (rendered.startsWith("RENDER skipped")) console.log(`skip ${rendered}`);
+  else ok(/^RENDER \d{4,}$/.test(rendered), `sp.render draws a figure from inside the kernel (${rendered.slice(0, 160)})`);
 
   // A dark JupyterLab gets dark views.
   await page.evaluate(() => window.jupyterapp.commands.execute("apputils:change-theme", { theme: "JupyterLab Dark" }));
